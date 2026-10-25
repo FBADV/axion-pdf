@@ -31,8 +31,10 @@ fn hero(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
             ui.vertical(|ui| {
                 ui.set_max_width(room);
                 ui.add(
-                    egui::Label::new(egui::RichText::new(tl!("Welcome to Axion PDF")).font(theme::semibold(if narrow { 21.0 } else { 24.0 })).color(t.text))
-                        .wrap(),
+                    egui::Label::new(
+                        egui::RichText::new(tl!("Welcome to Axion PDF")).font(theme::semibold(if narrow { 21.0 } else { 24.0 })).color(t.text),
+                    )
+                    .wrap(),
                 );
                 ui.add(
                     egui::Label::new(
@@ -50,7 +52,9 @@ fn hero(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
             if hero_button(ui, t, "folder-open", tl!("Open PDF"), true, true).clicked() {
                 app.open_dialog();
             }
-            for (icon, label, command) in [("file-text", tl!("Save as Word"), "export.docx"), ("file-text", tl!("Save as Markdown"), "export.markdown")] {
+            for (icon, label, command) in
+                [("file-text", tl!("Save as Word"), "export.docx"), ("file-text", tl!("Save as Markdown"), "export.markdown")]
+            {
                 let enabled = app.active.is_some();
                 // Not `add_enabled_ui`: a child Ui would keep the buttons from wrapping on a phone.
                 let resp = hero_button(ui, t, icon, label, false, enabled);
@@ -168,8 +172,10 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                 ui.add(egui::Label::new(egui::RichText::new(tl!("Part of the Axion suite")).font(theme::semibold(15.0))).wrap());
                                 ui.add(
                                     egui::Label::new(
-                                        egui::RichText::new(tl!("Axion PDF and Axion DocX work together: open, convert and save between PDF, Word and Markdown."))
-                                            .color(t.text_muted),
+                                        egui::RichText::new(tl!(
+                                            "Axion PDF and Axion DocX work together: open, convert and save between PDF, Word and Markdown."
+                                        ))
+                                        .color(t.text_muted),
                                     )
                                     .wrap(),
                                 );

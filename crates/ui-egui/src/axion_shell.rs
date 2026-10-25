@@ -335,7 +335,13 @@ fn rail_item(ui: &mut egui::Ui, t: &Tokens, icon: &str, label: &str, selected: b
         icons::paint(ui, chip, icon, 18.0, Color32::WHITE);
     } else {
         press.wash(ui, body, 14, selected);
-        icons::paint(ui, Rect::from_center_size(egui::pos2(body.center().x, body.top() + 18.0), vec2(20.0, 20.0)), icon, 20.0, if selected { t.accent } else { t.icon });
+        icons::paint(
+            ui,
+            Rect::from_center_size(egui::pos2(body.center().x, body.top() + 18.0), vec2(20.0, 20.0)),
+            icon,
+            20.0,
+            if selected { t.accent } else { t.icon },
+        );
     }
     let font = if selected { theme::semibold(10.5) } else { theme::medium(10.5) };
     let ink = if selected { t.accent_text } else { t.text_muted };
@@ -397,8 +403,16 @@ fn open_documents(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
             let band = Rect::from_min_size(egui::pos2(thumb.left() + 3.0, thumb.bottom() - 12.0), vec2(22.0, 8.0));
             ui.painter().rect_filled(band, CornerRadius::same(2), t.badge_new);
             let text_w = rect.width() - 84.0;
-            crate::widgets::row_text(ui, rect.min + vec2(48.0, 17.0), name.clone(), if selected { theme::semibold(13.0) } else { theme::medium(13.0) }, t.text, text_w);
-            let detail = format!("{}{}", crate::i18n::trn(crate::i18n::current(), pages as u64, "{n} page", "{n} pages"), if dirty { " · ●" } else { "" });
+            crate::widgets::row_text(
+                ui,
+                rect.min + vec2(48.0, 17.0),
+                name.clone(),
+                if selected { theme::semibold(13.0) } else { theme::medium(13.0) },
+                t.text,
+                text_w,
+            );
+            let detail =
+                format!("{}{}", crate::i18n::trn(crate::i18n::current(), pages as u64, "{n} page", "{n} pages"), if dirty { " · ●" } else { "" });
             ui.painter().text(rect.min + vec2(48.0, 36.0), Align2::LEFT_CENTER, detail, theme::regular(11.5), t.text_muted);
             let hovered = ui.rect_contains_pointer(rect);
             if hovered || selected {
@@ -694,9 +708,11 @@ pub fn format_row(ui: &mut egui::Ui, t: &Tokens, badge: &str, label: &str, hint:
 
 pub fn phone_top(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
-    egui::Panel::top("axion_phone_top").exact_size(64.0).show_separator_line(false).frame(egui::Frame::NONE.fill(t.pasteboard).inner_margin(egui::Margin::symmetric(12, 8))).show(
-        ui,
-        |ui| {
+    egui::Panel::top("axion_phone_top")
+        .exact_size(64.0)
+        .show_separator_line(false)
+        .frame(egui::Frame::NONE.fill(t.pasteboard).inner_margin(egui::Margin::symmetric(12, 8)))
+        .show(ui, |ui| {
             ui.horizontal_centered(|ui| {
                 ui.spacing_mut().item_spacing.x = 8.0;
                 if app.active.is_some() || app.combine_showing() {
@@ -715,7 +731,10 @@ pub fn phone_top(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                             let pages = app.session.get(id).map_or(0, |d| d.info.pages.len());
                             (
                                 crate::canvas::tab_label(app, i).unwrap_or_default(),
-                                crate::i18n::fmt(tl!("Page {n} of {count}"), &[("n", &(current.min(pages.saturating_sub(1)) + 1).to_string()), ("count", &pages.to_string())]),
+                                crate::i18n::fmt(
+                                    tl!("Page {n} of {count}"),
+                                    &[("n", &(current.min(pages.saturating_sub(1)) + 1).to_string()), ("count", &pages.to_string())],
+                                ),
                             )
                         }
                         _ => ("Axion PDF".to_owned(), "Bernardo Advogados".to_owned()),
@@ -727,8 +746,7 @@ pub fn phone_top(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     crate::chrome::main_menu_with(app, ui, |ui, t| round_button(ui, t, "ellipsis", tl!("Menu")));
                 });
             });
-        },
-    );
+        });
 }
 
 fn round_button(ui: &mut egui::Ui, t: &Tokens, icon: &str, tip: &str) -> egui::Response {
@@ -746,9 +764,11 @@ fn round_button(ui: &mut egui::Ui, t: &Tokens, icon: &str, tip: &str) -> egui::R
 /// The phone's bottom tab bar: Home, Document, Mark up, Tools, Send.
 pub fn phone_tabs(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
-    egui::Panel::bottom("axion_phone_tabs").exact_size(88.0).show_separator_line(false).frame(egui::Frame::NONE.fill(t.pasteboard).inner_margin(egui::Margin { left: 12, right: 12, top: 6, bottom: 12 })).show(
-        ui,
-        |ui| {
+    egui::Panel::bottom("axion_phone_tabs")
+        .exact_size(88.0)
+        .show_separator_line(false)
+        .frame(egui::Frame::NONE.fill(t.pasteboard).inner_margin(egui::Margin { left: 12, right: 12, top: 6, bottom: 12 }))
+        .show(ui, |ui| {
             card(&t, 24).show(ui, |ui| {
                 ui.set_height(68.0);
                 ui.set_width(ui.available_width());
@@ -772,7 +792,13 @@ pub fn phone_tabs(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                         }
                         let ink = if selected { t.accent_text } else { t.text_muted };
                         icons::paint(ui, pill, icon, 20.0, if selected { t.accent } else { t.text_muted });
-                        ui.painter().text(egui::pos2(rect.center().x, rect.bottom() - 12.0), Align2::CENTER_CENTER, label, if selected { theme::semibold(11.0) } else { theme::medium(11.0) }, ink);
+                        ui.painter().text(
+                            egui::pos2(rect.center().x, rect.bottom() - 12.0),
+                            Align2::CENTER_CENTER,
+                            label,
+                            if selected { theme::semibold(11.0) } else { theme::medium(11.0) },
+                            ink,
+                        );
                         let resp = theme::hand(resp);
                         if k == 4 {
                             let mut run = None;
@@ -819,6 +845,5 @@ pub fn phone_tabs(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     }
                 });
             });
-        },
-    );
+        });
 }

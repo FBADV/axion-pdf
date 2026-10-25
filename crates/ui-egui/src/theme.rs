@@ -448,8 +448,18 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
     v.override_text_color = Some(t.text);
     v.window_corner_radius = CornerRadius::same(16);
     v.menu_corner_radius = CornerRadius::same(12);
-    v.window_shadow = egui::Shadow { offset: [0, 12], blur: 36, spread: 0, color: if t.dark() { Color32::from_black_alpha(120) } else { Color32::from_rgba_unmultiplied(0x16, 0x2A, 0x55, 34) } };
-    v.popup_shadow = egui::Shadow { offset: [0, 6], blur: 22, spread: 0, color: if t.dark() { Color32::from_black_alpha(100) } else { Color32::from_rgba_unmultiplied(0x16, 0x2A, 0x55, 28) } };
+    v.window_shadow = egui::Shadow {
+        offset: [0, 12],
+        blur: 36,
+        spread: 0,
+        color: if t.dark() { Color32::from_black_alpha(120) } else { Color32::from_rgba_unmultiplied(0x16, 0x2A, 0x55, 34) },
+    };
+    v.popup_shadow = egui::Shadow {
+        offset: [0, 6],
+        blur: 22,
+        spread: 0,
+        color: if t.dark() { Color32::from_black_alpha(100) } else { Color32::from_rgba_unmultiplied(0x16, 0x2A, 0x55, 28) },
+    };
     for w in [&mut v.widgets.noninteractive, &mut v.widgets.inactive, &mut v.widgets.hovered, &mut v.widgets.active, &mut v.widgets.open] {
         w.corner_radius = CornerRadius::same(t.radius);
         w.fg_stroke.color = t.text;

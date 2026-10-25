@@ -21,19 +21,28 @@ pub fn left_panel(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     if app.left == LeftPanel::Tool("organize") && app.active.and_then(|i| app.views.get(i)).is_some_and(|v| !v.organize) {
         app.left = crate::organize_panel::workspace_panel(app.mode);
     }
-    egui::Frame::NONE.fill(t.panel).inner_margin(egui::Margin { left: 14, right: 10, top: 12, bottom: 10 }).stroke(Stroke::new(1.0, t.divider)).show(
-        ui,
-        |ui| match app.left {
-            // Organize pages has its own panel whenever the grid shows (with a document open).
-            _ if app.active.is_some() && crate::organize_panel::showing(app) => crate::organize_panel::panel(app, ui, &t),
-            LeftPanel::AllTools => all_tools(app, ui, &t),
-            LeftPanel::Tool(id) => match catalog::group(id) {
-                Some(g) => tool_detail(app, ui, &t, g),
-                None => app.left = LeftPanel::AllTools,
-            },
-            LeftPanel::CalculationOrder => crate::calc_order_ui::panel(app, ui, &t),
-        },
-    );
+    // Axion: the tools panel is a floating card on the pasteboard, like the sidebar.
+    ui.painter().rect_filled(ui.max_rect(), 0.0, t.pasteboard);
+    egui::Frame::NONE
+        .fill(t.card)
+        .corner_radius(CornerRadius::same(20))
+        .stroke(Stroke::new(1.0, t.divider))
+        .shadow(egui::Shadow { offset: [0, 6], blur: 22, spread: 0, color: t.page_shadow.gamma_multiply(0.75) })
+        .outer_margin(egui::Margin { left: 10, right: 6, top: 10, bottom: 14 })
+        .inner_margin(egui::Margin { left: 14, right: 12, top: 14, bottom: 12 })
+        .show(ui, |ui| {
+            ui.set_min_height(ui.available_height());
+            match app.left {
+                // Organize pages has its own panel whenever the grid shows (with a document open).
+                _ if app.active.is_some() && crate::organize_panel::showing(app) => crate::organize_panel::panel(app, ui, &t),
+                LeftPanel::AllTools => all_tools(app, ui, &t),
+                LeftPanel::Tool(id) => match catalog::group(id) {
+                    Some(g) => tool_detail(app, ui, &t, g),
+                    None => app.left = LeftPanel::AllTools,
+                },
+                LeftPanel::CalculationOrder => crate::calc_order_ui::panel(app, ui, &t),
+            }
+        });
 }
 
 /// A panel's title row: a leading button (`lead`: its icon and tooltip) when given, the title
@@ -56,9 +65,7 @@ pub(crate) fn panel_header(ui: &mut egui::Ui, t: &Tokens, title: &str, lead: Opt
             close = true;
         }
     });
-    ui.add_space(4.0);
-    ui.separator();
-    ui.add_space(6.0);
+    ui.add_space(10.0);
     (go_back, close)
 }
 
@@ -83,15 +90,7 @@ fn all_tools(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
         }
         ui.add_space(4.0);
         let more = if app.all_tools_expanded { "View less" } else { "View more" };
-        if ui
-            .add(
-                egui::Label::new(egui::RichText::new(tl!(more)).color(t.accent_text).font(theme::medium(13.0)))
-                    .selectable(false)
-                    .sense(Sense::click()),
-            )
-            .on_hover_cursor(egui::CursorIcon::PointingHand)
-            .clicked()
-        {
+        if widgets::pill_button(ui, tl!(more), false).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
             app.all_tools_expanded = !app.all_tools_expanded;
         }
     });
@@ -109,12 +108,15 @@ fn row_label(ui: &mut egui::Ui, text: &str, font: egui::FontId, color: Color32, 
 }
 
 fn tool_row(ui: &mut egui::Ui, t: &Tokens, g: &ToolGroup) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::click());
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 48.0), Sense::click());
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tl!(g.label)));
     let press = theme::Press::track(ui, &resp);
-    press.wash(ui, rect, 6, false);
+    press.wash(ui, rect, 14, false);
     let body = rect.translate(press.offset());
-    icons::paint(ui, Rect::from_min_size(body.min + vec2(6.0, 7.0), vec2(20.0, 20.0)), g.icon, 19.0, hue(g));
+    // Axion: an illustrated chip in the tool's colour.
+    let chip = Rect::from_min_size(body.min + vec2(6.0, 8.0), vec2(32.0, 32.0));
+    ui.painter().rect_filled(chip, CornerRadius::same(10), hue(g).gamma_multiply(if t.dark() { 0.28 } else { 0.14 }));
+    icons::paint(ui, chip, g.icon, 18.0, hue(g));
     let right_reserved = match (g.badge, g.availability) {
         (Some(b), _) => ui.fonts_mut(|f| f.layout_no_wrap(tl!(b).to_owned(), theme::semibold(9.5), Color32::WHITE).size().x) + 26.0,
         (None, Availability::Planned(m)) if resp.hovered() => {
@@ -124,7 +126,7 @@ fn tool_row(ui: &mut egui::Ui, t: &Tokens, g: &ToolGroup) -> egui::Response {
         _ => 8.0,
     };
     let clipped =
-        row_label(ui, tl!(g.label), theme::regular(13.5), t.text, body.left_center() + vec2(36.0, 0.0), rect.width() - 36.0 - right_reserved);
+        row_label(ui, tl!(g.label), theme::medium(13.5), t.text, body.left_center() + vec2(48.0, 0.0), rect.width() - 48.0 - right_reserved);
     match (g.badge, g.availability) {
         (Some(b), _) => {
             let font = theme::semibold(9.5);
@@ -214,16 +216,16 @@ fn tool_detail(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'static
                 if g.id == "fill_sign" && (item.command.starts_with("sign.fill.signature") || item.command.starts_with("sign.fill.initials")) {
                     continue;
                 }
-                let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::click());
+                let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::click());
                 resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tl!(item.label)));
                 let ready = item.availability == Availability::Ready;
                 let press = theme::Press::track(ui, &resp);
-                press.wash(ui, rect, 6, false);
+                press.wash(ui, rect, 12, false);
                 let body = rect.translate(press.offset());
                 let fg = if ready { t.text } else { t.text_muted };
                 icons::paint(
                     ui,
-                    Rect::from_min_size(body.min + vec2(6.0, 8.0), vec2(18.0, 18.0)),
+                    Rect::from_min_size(body.min + vec2(8.0, 11.0), vec2(18.0, 18.0)),
                     item.icon,
                     17.0,
                     if ready { hue(g) } else { t.text_faint },
@@ -238,7 +240,7 @@ fn tool_detail(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'static
                 let w = crate::widgets::text_width(ui, &chip_label, &font);
                 let r = Rect::from_center_size(body.right_center() - vec2(w / 2.0 + 10.0, 0.0), vec2(w + 10.0, 16.0));
                 row_label(ui, tl!(item.label), theme::regular(13.0), fg, body.left_center() + vec2(34.0, 0.0), r.left() - body.left() - 42.0);
-                ui.painter().rect_filled(r, CornerRadius::same(4), fill);
+                ui.painter().rect_filled(r, CornerRadius::same(8), fill);
                 ui.painter().text(r.center(), Align2::CENTER_CENTER, chip_label, font, cfg);
                 let resp = theme::hand(resp).on_hover_text(format!("{} — {}", tl!(item.label), item.command));
                 // An entry with further commands opens a menu; its caret goes before the chip.
@@ -687,11 +689,17 @@ pub fn right_panel(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
         let comment_allowed = doc.allows_annotation();
         // A dialog or the palette owns the keyboard: the panel leaves Escape to it.
         let modal = app.dialog.is_some() || app.palette_open;
+        // Axion: the inspector floats as a rounded card, like the tools panel.
+        ui.painter().rect_filled(ui.max_rect(), 0.0, t.pasteboard);
         egui::Frame::NONE
-            .fill(t.panel)
-            .inner_margin(egui::Margin { left: 14, right: 12, top: 12, bottom: 8 })
+            .fill(t.card)
+            .corner_radius(CornerRadius::same(20))
+            .shadow(egui::Shadow { offset: [0, 6], blur: 22, spread: 0, color: t.page_shadow.gamma_multiply(0.75) })
+            .outer_margin(egui::Margin { left: 6, right: 6, top: 10, bottom: 14 })
+            .inner_margin(egui::Margin { left: 14, right: 12, top: 14, bottom: 8 })
             .stroke(Stroke::new(1.0, t.divider))
             .show(ui, |ui| {
+                ui.set_min_height(ui.available_height());
                 let (title, count) = match panel {
                     RightPanel::Comments => ("Comments", Some(crate::comments_panel::count(info))),
                     RightPanel::Bookmarks => ("Bookmarks", None),

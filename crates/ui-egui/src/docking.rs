@@ -382,8 +382,8 @@ pub fn show(app: &mut crate::PdfCraftApp, ui: &mut egui::Ui) {
     style.panels_label = crate::i18n::t("Panels").into();
     style.resize_label = crate::i18n::t("Resize panels").into();
     style.resize_window_label = crate::i18n::t("Resize panel window").into();
-    style.background = t.panel;
-    style.tab_background = t.chrome;
+    style.background = t.pasteboard;
+    style.tab_background = t.pasteboard;
     style.active_background = t.selected;
     style.text = t.text;
     style.inactive_text = t.text_muted;
@@ -399,8 +399,16 @@ pub fn show(app: &mut crate::PdfCraftApp, ui: &mut egui::Ui) {
     // Tools docked on its own is drawn bare, without a tab strip, like Acrobat's tool pane. Grouped
     // with another panel, or floating, it keeps its tab so it can be dragged away again; moving it
     // to the other side stays a preference and a command.
-    let bare_tools = rendered.location(&Panel::Tools).is_ok_and(|l| l.floating.is_none() && matches!(l.placement, Placement::Split(_)));
-    let render_permissions = move |panel: &Panel| if bare_tools && *panel == Panel::Tools { Permissions::PROTECTED } else { permissions(panel) };
+    let bare = |panel: Panel| rendered.location(&panel).is_ok_and(|l| l.floating.is_none() && matches!(l.placement, Placement::Split(_)));
+    let (bare_tools, bare_inspector) = (bare(Panel::Tools), bare(Panel::Inspector));
+    // Axion: docked panels are floating cards without a tab strip.
+    let render_permissions = move |panel: &Panel| {
+        if (bare_tools && *panel == Panel::Tools) || (bare_inspector && *panel == Panel::Inspector) {
+            Permissions::PROTECTED
+        } else {
+            permissions(panel)
+        }
+    };
     let output = DockArea::new(egui::Id::new("pdfcraft-docking")).show_with_limits(
         ui,
         &rendered,

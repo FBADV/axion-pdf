@@ -669,6 +669,10 @@ pub fn right_rail(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     );
     let page_count = doc.info.pages.len();
     let labels: Vec<String> = doc.info.pages.iter().map(|p| p.label.clone()).collect();
+    // The rail's outer margin shows the pasteboard, so the card floats like the other panels.
+    let avail = ui.available_rect_before_wrap();
+    let strip = egui::Rect::from_min_max(egui::pos2(avail.max.x - 62.0 - 14.0, avail.min.y), avail.max);
+    ui.painter().rect_filled(strip, 0.0, t.pasteboard);
     egui::Panel::right("rail")
         .resizable(false)
         .exact_size(62.0)
