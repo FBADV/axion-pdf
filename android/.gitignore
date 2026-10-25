@@ -3,5 +3,4 @@ build/
 app/build/
 app/src/main/assets/web/
 app/src/main/AndroidManifest.xml
-app/src/main/res/mipmap-*/
 local.properties

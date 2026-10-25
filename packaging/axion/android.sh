@@ -19,12 +19,7 @@ cp -R "$SITE/." "$WEB/"
 # Phones and tablets: no pinch-zoom of the whole page (the app zooms documents itself).
 sed -i 's|<meta name="viewport" content="[^"]*"|<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"|' "$WEB/index.html"
 
-# Launcher icon at every density, from the 1024 px master.
-for pair in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
-  dens="${pair%%:*}" px="${pair##*:}"
-  mkdir -p "$A/app/src/main/res/mipmap-$dens"
-  convert "assets/app-icon/$CARGO_BIN-1024.png" -trim +repage -resize "${px}x${px}" "$A/app/src/main/res/mipmap-$dens/ic_launcher.png"
-done
+# Launcher icons are pre-rendered in android/app/src/main/res/mipmap-*/ (from assets/app-icon).
 
 # Documents the app opens from other apps (Files, e-mail, WhatsApp…).
 FILTERS=""
