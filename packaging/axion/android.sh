@@ -36,7 +36,13 @@ src, dst, filters = sys.argv[1], sys.argv[2], sys.argv[3].replace("\\n", "\n")
 open(dst, "w").write(open(src).read().replace("<!--AXION_FILTERS-->", filters.rstrip("\n")))
 EOF
 
-(cd "$A" && gradle --no-daemon -q assembleRelease)
+if ! (cd "$A" && gradle --no-daemon --console=plain assembleRelease) >"$ROOT/gradle.log" 2>&1; then
+  # The run log is not always reachable: surface the failure as annotations too.
+  grep -E "error|FAILURE|What went wrong|wrong:|Exception|> " "$ROOT/gradle.log" | grep -v "^> Task" | head -40 | while IFS= read -r line; do echo "::error::$line"; done
+  tail -60 "$ROOT/gradle.log"
+  exit 1
+fi
+tail -5 "$ROOT/gradle.log"
 mkdir -p "$ROOT/out"
 cp "$A/app/build/outputs/apk/release/app-release.apk" "$ROOT/out/$APP_SLUG-$AXION_VERSION_NAME-Android.apk"
 ls -lh "$ROOT/out"
