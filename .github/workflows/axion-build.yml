@@ -35,7 +35,7 @@ jobs:
       version: ${{ steps.v.outputs.version }}
       code: ${{ steps.v.outputs.code }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: v
         run: |
           v=$(awk '/^\[/{p=($0=="[workspace.package]")} p && $1=="version"{gsub(/[" ]/,"",$3); print $3; exit}' Cargo.toml)
@@ -46,7 +46,7 @@ jobs:
     needs: version
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -75,7 +75,7 @@ jobs:
             "/DAppId=$env:APP_ID" "/DAppVersion=${{ needs.version.outputs.version }}" `
             "/DIcon=$PWD\assets\app-icon\$env:CARGO_BIN.ico" "/DStaging=$PWD\staging" "/DOut=$PWD\out" `
             packaging\axion\windows.iss
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: out/*.exe
@@ -84,7 +84,7 @@ jobs:
     needs: version
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
@@ -99,7 +99,7 @@ jobs:
           cargo build --release --locked -p "$CARGO_BIN" --target x86_64-apple-darwin
       - name: Disk image
         run: bash packaging/axion/macos.sh "${{ needs.version.outputs.version }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos
           path: out/*.dmg
@@ -108,7 +108,7 @@ jobs:
     needs: version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -120,11 +120,11 @@ jobs:
         run: |
           cargo binstall -y --locked trunk wasm-bindgen-cli >/dev/null || cargo install --locked trunk
           (cd "apps/$WEB_APP" && trunk build --release)
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
       - name: Signing key
         env:
           KEYSTORE_B64: ${{ secrets.AXION_ANDROID_KEYSTORE }}
@@ -144,7 +144,7 @@ jobs:
           AXION_VERSION_CODE: ${{ needs.version.outputs.code }}
           AXION_ACCEPT: ${{ env.ANDROID_ACCEPT }}
         run: bash packaging/axion/android.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: android
           path: out/*.apk
@@ -153,7 +153,7 @@ jobs:
     needs: [version, windows, macos, android]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
