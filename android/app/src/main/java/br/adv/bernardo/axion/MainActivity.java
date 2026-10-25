@@ -289,7 +289,7 @@ public class MainActivity extends Activity {
                 try {
                     startActivityForResult(i, SAVE);
                 } catch (Exception e) {
-                    share(name, mime, data);
+                    MainActivity.this.share(name, mime, data);
                 }
             });
         }
