@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="axion_background">#EDF2F9</color>
+    <color name="axion_bar">#E7EEF9</color>
+    <color name="axion_accent">#2F63D6</color>
+</resources>

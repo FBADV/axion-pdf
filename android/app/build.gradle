@@ -1,0 +1,63 @@
+// Axion Android shell: the app's WebAssembly build (assets/web) in a full-screen WebView, with
+// native open, save, share and print through the Storage Access Framework.
+// Values set by the CI workflow (or defaults for a local build):
+//   AXION_APP_ID, AXION_APP_NAME, AXION_VERSION_NAME, AXION_VERSION_CODE, AXION_ACCEPT (MIME list)
+//   AXION_KEYSTORE, AXION_KEYSTORE_PASSWORD, AXION_KEY_ALIAS, AXION_KEY_PASSWORD (release signing)
+plugins {
+    id "com.android.application"
+}
+
+def env = { String k, String d -> System.getenv(k) ?: d }
+
+android {
+    namespace "br.adv.bernardo.axion"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId env("AXION_APP_ID", "br.adv.bernardo.axion.app")
+        minSdk 26
+        targetSdk 35
+        versionCode Integer.parseInt(env("AXION_VERSION_CODE", "1"))
+        versionName env("AXION_VERSION_NAME", "1.0.0")
+        resValue "string", "app_name", env("AXION_APP_NAME", "Axion")
+        buildConfigField "String", "ACCEPT", "\"" + env("AXION_ACCEPT", "*/*") + "\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            def ks = System.getenv("AXION_KEYSTORE")
+            if (ks != null && new File(ks).exists()) {
+                storeFile file(ks)
+                storePassword System.getenv("AXION_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("AXION_KEY_ALIAS")
+                keyPassword System.getenv("AXION_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig System.getenv("AXION_KEYSTORE") != null ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // The WebAssembly module and fonts must stay uncompressed-readable by the asset loader.
+    androidResources {
+        noCompress += ["wasm"]
+    }
+}
+
+dependencies {
+    implementation "androidx.webkit:webkit:1.12.1"
+    implementation "androidx.core:core:1.13.1"
+}

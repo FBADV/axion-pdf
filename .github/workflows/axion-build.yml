@@ -1,0 +1,168 @@
+# Axion builds: the Windows installer (.exe), the macOS disk image (.dmg) and the Android app
+# (.apk), published together on the repository's Releases page.
+#
+# Runs on every push to main and from Actions › "Axion builds" › Run workflow.
+name: Axion builds
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: axion-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_TITLE: "Axion PDF"          # shown to people: "Axion PDF"
+  APP_SLUG: "Axion-PDF"            # file names: "Axion-PDF"
+  APP_EXE: "AxionPDF"              # executable: "AxionPDF"
+  APP_ID: "br.adv.bernardo.axionpdf"                # bundle / package id
+  CARGO_BIN: "pdfcraft"          # the desktop binary's cargo package (and file) name
+  WEB_APP: "pdfcraft-web"              # apps/<WEB_APP> holds the WebAssembly build
+  OCR_MODELS: "1"        # "1": the app ships OCR models
+  ANDROID_ACCEPT: "application/pdf"
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      code: ${{ steps.v.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          v=$(awk '/^\[/{p=($0=="[workspace.package]")} p && $1=="version"{gsub(/[" ]/,"",$3); print $3; exit}' Cargo.toml)
+          echo "version=${v%%-*}" >> "$GITHUB_OUTPUT"
+          echo "code=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: windows
+      - name: OCR models
+        if: env.OCR_MODELS == '1'
+        shell: bash
+        run: |
+          mkdir -p staging/models
+          cargo xtask models "$PWD/staging/models"
+          rm -f staging/models/*.part
+      - name: Build
+        shell: bash
+        run: cargo build --release --locked -p "$CARGO_BIN"
+      - name: Installer
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
+            $inno = "${env:ProgramFiles(x86)}\Inno Setup 6"
+            if (-not (Test-Path "$inno\ISCC.exe")) { choco install innosetup -y --no-progress | Out-Null }
+            $env:Path = "$inno;$env:Path"
+          }
+          New-Item -ItemType Directory -Force staging | Out-Null
+          Copy-Item "target\release\$env:CARGO_BIN.exe" "staging\$env:APP_EXE.exe"
+          iscc /Qp "/DAppTitle=$env:APP_TITLE" "/DAppSlug=$env:APP_SLUG" "/DAppExe=$env:APP_EXE" `
+            "/DAppId=$env:APP_ID" "/DAppVersion=${{ needs.version.outputs.version }}" `
+            "/DIcon=$PWD\assets\app-icon\$env:CARGO_BIN.ico" "/DStaging=$PWD\staging" "/DOut=$PWD\out" `
+            packaging\axion\windows.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*.exe
+
+  macos:
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: macos
+      - name: Build (Apple silicon and Intel)
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: |
+          cargo build --release --locked -p "$CARGO_BIN" --target aarch64-apple-darwin
+          cargo build --release --locked -p "$CARGO_BIN" --target x86_64-apple-darwin
+      - name: Disk image
+        run: bash packaging/axion/macos.sh "${{ needs.version.outputs.version }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: out/*.dmg
+
+  android:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: android
+      - uses: cargo-bins/cargo-binstall@main
+      - name: Web build
+        run: |
+          cargo binstall -y --locked trunk wasm-bindgen-cli >/dev/null || cargo install --locked trunk
+          (cd "apps/$WEB_APP" && trunk build --release)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.AXION_ANDROID_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/axion.jks"
+            echo "AXION_KEYSTORE=$RUNNER_TEMP/axion.jks" >> "$GITHUB_ENV"
+          fi
+      - name: APK
+        env:
+          AXION_KEYSTORE_PASSWORD: ${{ secrets.AXION_ANDROID_PASSWORD }}
+          AXION_KEY_PASSWORD: ${{ secrets.AXION_ANDROID_PASSWORD }}
+          AXION_KEY_ALIAS: axion
+          AXION_APP_ID: ${{ env.APP_ID }}
+          AXION_APP_NAME: ${{ env.APP_TITLE }}
+          AXION_VERSION_NAME: ${{ needs.version.outputs.version }}
+          AXION_VERSION_CODE: ${{ needs.version.outputs.code }}
+          AXION_ACCEPT: ${{ env.ANDROID_ACCEPT }}
+        run: bash packaging/axion/android.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/*.apk
+
+  release:
+    needs: [version, windows, macos, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ needs.version.outputs.version }}-${{ github.run_number }}
+        run: |
+          ls -l dist
+          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --latest \
+            --title "$APP_TITLE ${{ needs.version.outputs.version }} (compilação ${{ github.run_number }})" \
+            --notes "Instaladores do $APP_TITLE: Windows (.exe), Mac (.dmg) e Android (.apk). Baixe o arquivo do seu aparelho em Assets."
