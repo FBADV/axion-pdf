@@ -36,6 +36,7 @@ mod all_tools_ui;
 mod appearance;
 mod calc_order_ui;
 pub mod canvas;
+mod axion_shell;
 mod chrome;
 mod combine_grid;
 mod image_pick;
@@ -646,8 +647,11 @@ pub struct PdfCraftApp {
     mode_override: Option<Mode>,
     pub left: LeftPanel,
     pub left_open: bool,
-    /// Axion: the window was phone-sized last frame (see `ui`).
+    /// Axion: the window was phone- or tablet-sized last frame (see `ui`).
     axion_compact: bool,
+    /// Axion: the window was phone-sized last frame, and how many documents were open then.
+    axion_phone: bool,
+    axion_fitted: usize,
     pub right: Option<RightPanel>,
     /// The right panel that was open when the user switched to Read mode, which starts with the
     /// panes closed; leaving Read mode brings it back unless the user opened or closed a pane in
@@ -1109,6 +1113,8 @@ impl PdfCraftApp {
             pending_panel_reveals: Vec::new(),
             left_open: true,
             axion_compact: false,
+            axion_phone: false,
+            axion_fitted: 0,
             right: None,
             right_before_read: None,
             comments_panel_closed: false,
@@ -3693,21 +3699,42 @@ impl eframe::App for PdfCraftApp {
             self.finish_render_frame(&ctx);
             return;
         }
-        // Axion: a phone-sized screen starts with the side panels closed so the page has the room;
+        // Axion: a phone or tablet starts with the side panels closed so the page has the room;
         // they open from the Menu, the tools and the rail as usual.
-        let compact = ctx.content_rect().width() < 760.0;
+        let compact = ctx.content_rect().width() < axion_shell::TABLET;
+        let phone = axion_shell::size(&ctx) == axion_shell::Size::Phone;
         if compact && !self.axion_compact {
             self.left_open = false;
             self.right = None;
         }
+        // On a phone, pages open fitted to the width of the screen.
+        if phone {
+            let from = if self.axion_phone { self.axion_fitted.min(self.views.len()) } else { 0 };
+            for view in self.views.iter_mut().skip(from) {
+                if view.fit == canvas::Fit::Page {
+                    view.set_fit(canvas::Fit::Width);
+                }
+            }
+        }
+        self.axion_phone = phone;
+        self.axion_fitted = self.views.len();
         self.axion_compact = compact;
         self.sync_window_frame(&ctx);
         if self.draws_window_frame() {
             window_controls::resize_edges(&ctx);
         }
-        chrome::tab_strip(self, ui);
-        chrome::mode_bar(self, ui);
-        if self.active.is_some() {
+        // Axion layout: sidebar (or rail) and command bar; on a phone, top bar and bottom tabs.
+        match axion_shell::size(&ctx) {
+            axion_shell::Size::Phone => {
+                axion_shell::phone_top(self, ui);
+                axion_shell::phone_tabs(self, ui);
+            }
+            size => {
+                axion_shell::sidebar(self, ui, size == axion_shell::Size::Tablet);
+                axion_shell::command_bar(self, ui, size == axion_shell::Size::Tablet);
+            }
+        }
+        if self.active.is_some() && axion_shell::size(&ctx) != axion_shell::Size::Phone {
             chrome::right_rail(self, ui);
             // Read mode hides the tools, not the navigation panes: the rail stays visible
             // there, so its buttons (Bookmarks, Page thumbnails, ...) must open their panels.

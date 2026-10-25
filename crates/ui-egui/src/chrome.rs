@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Axion: the original tab strip is kept for reference; axion_shell draws the window chrome.
 //! Window chrome: tab strip (with the integrated macOS title bar), mode bar, right rail.
 
 use egui::{Align, Align2, Color32, CornerRadius, Layout, Rect, Sense, Stroke, vec2};
@@ -557,9 +558,14 @@ pub(crate) fn scroll_menu(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui)) {
     egui::ScrollArea::vertical().max_height(height).auto_shrink([true, true]).show(ui, add);
 }
 
-fn main_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
+pub(crate) fn main_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
+    main_menu_with(app, ui, |ui, _| widgets::ghost_button(ui, "panel-left", tl!("Menu")));
+}
+
+/// The app's full menu (File, Edit, Pages, View, Help…) behind a button the caller draws.
+pub(crate) fn main_menu_with(app: &mut PdfCraftApp, ui: &mut egui::Ui, button: impl FnOnce(&mut egui::Ui, &Tokens) -> egui::Response) {
     let t = Tokens::get(ui.ctx());
-    let resp = widgets::ghost_button(ui, "panel-left", tl!("Menu"));
+    let resp = button(ui, &t);
     egui::Popup::menu(&resp).show(|ui| {
         scroll_menu(ui, |ui| {
             ui.set_min_width(230.0);
@@ -665,8 +671,18 @@ pub fn right_rail(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let labels: Vec<String> = doc.info.pages.iter().map(|p| p.label.clone()).collect();
     egui::Panel::right("rail")
         .resizable(false)
-        .exact_size(48.0)
-        .frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin::symmetric(6, 8)).stroke(Stroke::new(1.0, t.divider)))
+        .exact_size(62.0)
+        .show_separator_line(false)
+        // Axion: the rail floats as a rounded card beside the page.
+        .frame(
+            egui::Frame::NONE
+                .fill(t.card)
+                .corner_radius(CornerRadius::same(18))
+                .stroke(Stroke::new(1.0, t.divider))
+                .shadow(egui::Shadow { offset: [0, 6], blur: 22, spread: 0, color: t.page_shadow.gamma_multiply(0.75) })
+                .outer_margin(egui::Margin { left: 0, right: 14, top: 10, bottom: 14 })
+                .inner_margin(egui::Margin::symmetric(6, 10)),
+        )
         .show(ui, |ui| {
             // Page navigation cluster at the bottom (as in Acrobat's rail). It is a panel of its own so
             // that in a short window the buttons above scroll instead of running into it (#3282).
