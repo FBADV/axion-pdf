@@ -297,7 +297,7 @@ pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tok
         ui.label(tl!("Interface language"));
         let selected = crate::i18n::Lang::from_code(&app.language).map_or(tl!("Auto"), crate::i18n::Lang::name);
         let before = app.language.clone();
-        egui::ComboBox::from_id_salt("interface-language").selected_text(selected).show_ui(ui, |ui| {
+        egui::ComboBox::from_id_salt("interface-language").icon(crate::widgets::combo_icon).selected_text(selected).show_ui(ui, |ui| {
             if ui.selectable_value(&mut app.language, crate::i18n::AUTO.to_string(), tl!("Auto")).clicked() {
                 ui.close();
             }
@@ -320,7 +320,7 @@ pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tok
         let auto_percent = ui_scale::percent(ui_scale::drawn(None, app.system_text_scale, native));
         let auto = crate::i18n::fmt(tl!("Auto ({percent}%)"), &[("percent", &auto_percent.to_string())]);
         let selected = app.ui_scale.map_or_else(|| auto.clone(), |f| format!("{}%", ui_scale::percent(f)));
-        egui::ComboBox::from_id_salt("interface-size").selected_text(selected).show_ui(ui, |ui| {
+        egui::ComboBox::from_id_salt("interface-size").icon(crate::widgets::combo_icon).selected_text(selected).show_ui(ui, |ui| {
             if ui.selectable_value(&mut app.ui_scale, None, auto).clicked() {
                 ui.close();
             }
@@ -446,36 +446,39 @@ pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tok
     ui.horizontal(|ui| {
         ui.label(tl!("Replace document colours"));
         let mode = app.reading_colors.mode_name();
-        egui::ComboBox::from_id_salt("reading-colors").selected_text(tl!(reading_mode_label(mode))).show_ui(ui, |ui| {
-            for (m, label) in [
-                ("off", "Off"),
-                ("black-on-white", "Black on white"),
-                ("white-on-black", "White on black"),
-                ("yellow-on-black", "Yellow on black"),
-                ("green-on-black", "Green on black"),
-                ("custom", "Custom"),
-            ] {
-                if ui.selectable_label(mode == m, tl!(label)).clicked() {
-                    match m {
-                        "off" => app.set_reading_colors(pdfcraft_render::ReadingColors::default()),
-                        "custom" => {
-                            // Custom starts from the colours already chosen, or black on white.
-                            let colors = app.reading_colors.params.map_or(pdfcraft_render::ReadingColors::BLACK_ON_WHITE, |params| {
-                                pdfcraft_render::ReadingColors { params: Some(params) }
-                            });
-                            app.set_reading_colors(colors);
-                        }
-                        // `parse` knows these names; a preset comes with its own flags.
-                        preset => {
-                            if let Ok(colors) = pdfcraft_render::ReadingColors::parse(preset, None, None, None, None) {
+        egui::ComboBox::from_id_salt("reading-colors").icon(crate::widgets::combo_icon).selected_text(tl!(reading_mode_label(mode))).show_ui(
+            ui,
+            |ui| {
+                for (m, label) in [
+                    ("off", "Off"),
+                    ("black-on-white", "Black on white"),
+                    ("white-on-black", "White on black"),
+                    ("yellow-on-black", "Yellow on black"),
+                    ("green-on-black", "Green on black"),
+                    ("custom", "Custom"),
+                ] {
+                    if ui.selectable_label(mode == m, tl!(label)).clicked() {
+                        match m {
+                            "off" => app.set_reading_colors(pdfcraft_render::ReadingColors::default()),
+                            "custom" => {
+                                // Custom starts from the colours already chosen, or black on white.
+                                let colors = app.reading_colors.params.map_or(pdfcraft_render::ReadingColors::BLACK_ON_WHITE, |params| {
+                                    pdfcraft_render::ReadingColors { params: Some(params) }
+                                });
                                 app.set_reading_colors(colors);
                             }
+                            // `parse` knows these names; a preset comes with its own flags.
+                            preset => {
+                                if let Ok(colors) = pdfcraft_render::ReadingColors::parse(preset, None, None, None, None) {
+                                    app.set_reading_colors(colors);
+                                }
+                            }
                         }
+                        ui.close();
                     }
-                    ui.close();
                 }
-            }
-        });
+            },
+        );
     });
     if app.reading_colors.params.is_some() {
         let mut changed = false;
@@ -548,6 +551,7 @@ fn date_format(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) {
         let current = app.session.date_format().to_string();
         let selected = if DATE_FORMATS.contains(&current.as_str()) { sample(app, &current) } else { tl!("Custom").to_string() };
         egui::ComboBox::from_id_salt("date-format")
+            .icon(crate::widgets::combo_icon)
             .selected_text(selected)
             .width(240.0)
             .show_ui(ui, |ui| {
@@ -600,6 +604,7 @@ fn date_format(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) {
         let current = app.session.date_language().map(str::to_string);
         let selected = DATE_LANGUAGES.iter().find(|l| current.as_deref() == Some(l.code)).map_or(follow.clone(), |l| l.name.to_string());
         egui::ComboBox::from_id_salt("date-language")
+            .icon(crate::widgets::combo_icon)
             .selected_text(selected)
             .width(240.0)
             .show_ui(ui, |ui| {

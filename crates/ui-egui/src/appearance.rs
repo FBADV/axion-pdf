@@ -119,14 +119,17 @@ pub fn preferences_section(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens)
     ui.label(RichText::new(tl_ctx!("theme", "Appearance")).font(theme::semibold(13.0)));
     ui.horizontal(|ui| {
         ui.label(tl!("Appearance mode"));
-        egui::ComboBox::from_id_salt("appearance-mode").selected_text(tl!(mode_label(app.theme_preference))).show_ui(ui, |ui| {
-            for preference in [ThemePreference::System, ThemePreference::Light, ThemePreference::Dark] {
-                if ui.selectable_label(app.theme_preference == preference, tl!(mode_label(preference))).clicked() {
-                    app.execute(mode_command(preference));
-                    ui.close();
+        egui::ComboBox::from_id_salt("appearance-mode")
+            .icon(crate::widgets::combo_icon)
+            .selected_text(tl!(mode_label(app.theme_preference)))
+            .show_ui(ui, |ui| {
+                for preference in [ThemePreference::System, ThemePreference::Light, ThemePreference::Dark] {
+                    if ui.selectable_label(app.theme_preference == preference, tl!(mode_label(preference))).clicked() {
+                        app.execute(mode_command(preference));
+                        ui.close();
+                    }
                 }
-            }
-        });
+            });
     });
     ui.add_space(4.0);
     let light_active = app.theme == ThemeKind::Light;

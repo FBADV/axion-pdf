@@ -86,7 +86,10 @@ fn hero_button(ui: &mut egui::Ui, t: &Tokens, icon: &str, label: &str, primary: 
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label));
     let press = theme::Press::track(ui, &resp);
     let (fill, text) = if primary {
-        (press.fill(t.accent, t.accent_text, t.accent_text), egui::Color32::WHITE)
+        (
+            press.fill(t.accent, t.accent.lerp_to_gamma(egui::Color32::BLACK, 0.15), t.accent.lerp_to_gamma(egui::Color32::BLACK, 0.25)),
+            egui::Color32::WHITE,
+        )
     } else if t.dark() {
         (press.fill(egui::Color32::from_white_alpha(18), egui::Color32::from_white_alpha(30), egui::Color32::from_white_alpha(40)), t.text)
     } else {

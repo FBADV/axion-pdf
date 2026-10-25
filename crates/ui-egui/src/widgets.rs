@@ -12,15 +12,15 @@ pub(crate) const FIELD_TEXT_INSET: f32 = FIELD_MARGIN.left as f32;
 /// Outer height of a single-line field, including its inset.
 const FIELD_MIN_HEIGHT: f32 = 30.0;
 /// Padding inside every modal.
-const DIALOG_PAD_X: i8 = 20;
-const DIALOG_PAD_Y: i8 = 16;
+const DIALOG_PAD_X: i8 = 24;
+const DIALOG_PAD_Y: i8 = 20;
 
 fn dialog_frame(ctx: &egui::Context) -> egui::Frame {
     let t = Tokens::get(ctx);
     egui::Frame::new()
         .fill(t.card)
-        .stroke(Stroke::new(1.0, t.border))
-        .corner_radius(CornerRadius::same(10))
+        .stroke(Stroke::new(1.0, t.divider))
+        .corner_radius(CornerRadius::same(20))
         .inner_margin(egui::Margin::symmetric(DIALOG_PAD_X, DIALOG_PAD_Y))
         .shadow(ctx.global_style().visuals.window_shadow)
 }
@@ -54,9 +54,10 @@ pub fn begin_dialog(ui: &mut egui::Ui) {
     w.inactive.weak_bg_fill = t.field;
     // Slider rails and check-box interiors use the plain fill.
     w.inactive.bg_fill = t.hover;
-    w.hovered.bg_stroke = Stroke::new(1.0, t.text_muted);
+    w.hovered.bg_stroke = Stroke::new(1.0, t.accent.gamma_multiply(0.6));
     for state in [&mut w.inactive, &mut w.hovered, &mut w.active, &mut w.open] {
-        state.corner_radius = CornerRadius::same(4);
+        state.corner_radius = CornerRadius::same(5);
+        state.expansion = 0.0;
     }
     ui.visuals_mut().selection.stroke = Stroke::new(1.5, t.accent);
     ui.spacing_mut().interact_size.y = FIELD_MIN_HEIGHT;
@@ -145,7 +146,11 @@ pub fn pill_button_marked(ui: &mut egui::Ui, label: &str, primary: bool, marked:
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label));
     let press = theme::Press::track(ui, &resp);
     let (fill, stroke, text) = if primary {
-        (press.fill(t.accent, t.accent_text, t.accent.lerp_to_gamma(Color32::BLACK, 0.22)), Stroke::NONE, Color32::WHITE)
+        (
+            press.fill(t.accent, t.accent.lerp_to_gamma(Color32::BLACK, 0.12), t.accent.lerp_to_gamma(Color32::BLACK, 0.22)),
+            Stroke::NONE,
+            Color32::WHITE,
+        )
     } else {
         (press.fill(t.card, t.hover, t.pressed), Stroke::new(1.0, t.border), t.text)
     };
@@ -181,27 +186,30 @@ pub fn ghost_button_sized(ui: &mut egui::Ui, icon: &str, label: &str, height: f3
 /// A search-field lookalike that opens the command palette.
 pub fn search_box(ui: &mut egui::Ui, placeholder: &str, width: f32) -> Response {
     let t = Tokens::get(ui.ctx());
-    let (rect, resp) = ui.allocate_exact_size(vec2(width, 32.0), Sense::click());
+    let (rect, resp) = ui.allocate_exact_size(vec2(width, 40.0), Sense::click());
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), placeholder));
     let press = theme::Press::track(ui, &resp);
-    let fill = press.fill(t.field, t.hover, t.pressed);
-    let edge = t.border.lerp_to_gamma(t.text_muted, press.hover * 0.35);
-    ui.painter().rect(rect, CornerRadius::same(16), fill, Stroke::new(1.0, edge), egui::StrokeKind::Inside);
-    icons::paint(ui, Rect::from_min_size(rect.min + vec2(10.0, 8.0), vec2(16.0, 16.0)), "search", 15.0, t.text_muted);
+    // Axion: a soft grey field (no outline) that turns white with a blue edge under the pointer.
+    let fill = press.fill(t.pasteboard, t.card, t.card);
+    let edge = t.pasteboard.lerp_to_gamma(t.accent, press.hover * 3.0 * 0.45);
+    ui.painter().rect(rect, CornerRadius::same(20), fill, Stroke::new(1.0, edge), egui::StrokeKind::Inside);
+    icons::paint(ui, Rect::from_center_size(egui::pos2(rect.left() + 20.0, rect.center().y), vec2(16.0, 16.0)), "search", 15.0, t.text_muted);
     let shortcut = crate::commands::command_shortcut_label(ui.ctx(), "view.palette");
-    let shortcut = ui.painter().layout_no_wrap(shortcut, theme::regular(11.5), t.text_faint);
-    let shortcut_pos = rect.right_center() - vec2(12.0 + shortcut.size().x, shortcut.size().y * 0.5);
+    let shortcut = ui.painter().layout_no_wrap(shortcut, theme::medium(11.0), t.text_muted);
+    let shortcut_pos = rect.right_center() - vec2(16.0 + shortcut.size().x, shortcut.size().y * 0.5);
+    let kbd = Rect::from_min_size(shortcut_pos, shortcut.size()).expand2(vec2(6.0, 3.0));
+    ui.painter().rect(kbd, CornerRadius::same(6), t.card, Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
     // Reserve the measured shortcut width in every language; long translations are elided
     // within the remaining space rather than painted underneath the shortcut.
     let text_right = (shortcut_pos.x - 10.0).max(rect.left());
-    let text_left = (rect.left() + 34.0).min(text_right);
+    let text_left = (rect.left() + 36.0).min(text_right);
     let text_rect = Rect::from_min_max(egui::pos2(text_left, rect.top()), egui::pos2(text_right, rect.bottom()));
-    let mut job = egui::text::LayoutJob::simple_singleline(placeholder.to_owned(), theme::regular(13.0), t.text_faint);
+    let mut job = egui::text::LayoutJob::simple_singleline(placeholder.to_owned(), theme::regular(13.5), t.text_muted);
     job.wrap = egui::text::TextWrapping { max_width: text_rect.width(), max_rows: 1, break_anywhere: true, ..Default::default() };
     let text = ui.fonts_mut(|f| f.layout_job(job));
     let elided = text.elided;
     ui.painter().with_clip_rect(text_rect).galley(egui::pos2(text_left, rect.center().y - text.size().y * 0.5), text, t.text_faint);
-    ui.painter().with_clip_rect(rect).galley(shortcut_pos, shortcut, t.text_faint);
+    ui.painter().with_clip_rect(rect).galley(shortcut_pos, shortcut, t.text_muted);
     let resp = resp.on_hover_cursor(egui::CursorIcon::Text);
     if elided { resp.on_hover_text(placeholder) } else { resp }
 }
@@ -588,7 +596,11 @@ pub fn icon_pill(ui: &mut egui::Ui, icon: &str, label: &str, primary: bool) -> R
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label));
     let press = theme::Press::track(ui, &resp);
     let (fill, stroke, text) = if primary {
-        (press.fill(t.accent, t.accent_text, t.accent.lerp_to_gamma(Color32::BLACK, 0.22)), Stroke::NONE, Color32::WHITE)
+        (
+            press.fill(t.accent, t.accent.lerp_to_gamma(Color32::BLACK, 0.12), t.accent.lerp_to_gamma(Color32::BLACK, 0.22)),
+            Stroke::NONE,
+            Color32::WHITE,
+        )
     } else {
         (press.fill(t.card, t.hover, t.pressed), Stroke::new(1.0, t.border), t.text)
     };
@@ -837,4 +849,14 @@ mod tests {
         assert_eq!(fit_line(long, 0.0, width), "");
         assert_eq!(fit_line("ééé", 2.0, width), "é\u{2026}");
     }
+}
+
+/// The drop-down mark of every combo box: a thin chevron (Axion), not egui's filled triangle.
+pub fn combo_icon(ui: &egui::Ui, rect: Rect, visuals: &egui::style::WidgetVisuals, open: bool) {
+    let t = Tokens::get(ui.ctx());
+    let c = rect.center();
+    let (w, h) = (rect.width().min(10.0) * 0.5, rect.width().min(10.0) * 0.28);
+    let pts = if open { [c + vec2(-w, h), c + vec2(0.0, -h), c + vec2(w, h)] } else { [c + vec2(-w, -h), c + vec2(0.0, h), c + vec2(w, -h)] };
+    let color = if ui.is_enabled() { t.text_muted.lerp_to_gamma(visuals.fg_stroke.color, 0.3) } else { t.text_faint };
+    ui.painter().add(egui::Shape::line(pts.to_vec(), Stroke::new(1.6, color)));
 }

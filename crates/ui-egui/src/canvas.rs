@@ -22,6 +22,8 @@ const GAP: f32 = 14.0;
 const MARGIN: f32 = 28.0;
 /// Horizontal gutter that keeps pages clear of the floating quick-action bar.
 const SIDE: f32 = 70.0;
+/// The side gutter on a phone-narrow view (Axion: the page fills the screen).
+const SIDE_NARROW: f32 = 12.0;
 const THUMB_TAG: u64 = 1 << 63;
 const TEXT_TAG: u64 = 1 << 62;
 /// A page rendered for the organize grid at the size it is drawn there.
@@ -1152,7 +1154,7 @@ impl DocView {
         if !area.is_positive() {
             return None;
         }
-        let corner = area.min + vec2(SIDE, 0.0);
+        let corner = area.min + vec2(self.side(), 0.0);
         let (page, xf) = self
             .screen_xforms
             .iter()
@@ -1163,7 +1165,7 @@ impl DocView {
         // `max` drops a NaN size, so the bounds stay ordered and `clamp` can't panic.
         let (x, y) = (x.clamp(0.0, p.width.max(0.0)), y.clamp(0.0, p.height.max(0.0)));
         // The page counts with its side gutters, as the layout places it.
-        let wide = xf.rect.width() + 2.0 * SIDE > area.width();
+        let wide = xf.rect.width() + 2.0 * self.side() > area.width();
         let tall = xf.rect.height() > area.height();
         // The view's x runs across the screen unless the view is turned a quarter.
         let (keep_x, keep_y) = if xf.rot.is_multiple_of(180) { (wide, tall) } else { (tall, wide) };
@@ -1395,7 +1397,7 @@ impl DocView {
         let point = |x: Option<f32>, y: Option<f32>| p.dest_fraction(x, y, self.rotation);
         // The window's top-left as far as pages go: its left edge is the gutter that keeps them
         // clear of the floating quick-action bar, so `left` 0 shows the page's edge beside it.
-        let corner = vec2(SIDE, 0.0);
+        let corner = vec2(self.side(), 0.0);
         let (fx, fy, rel) = match dest {
             DestView::Top => return,
             DestView::Xyz { left, top, zoom } => {
@@ -2245,6 +2247,11 @@ impl DocView {
         if self.cover { c.saturating_sub((c + 1) % 2) } else { c - c % 2 }
     }
 
+    /// The gutter beside the pages: narrow on a phone, roomy elsewhere.
+    pub(crate) fn side(&self) -> f32 {
+        if self.viewport_w > 0.0 && self.viewport_w < 600.0 { SIDE_NARROW } else { SIDE }
+    }
+
     fn fit_zoom(&mut self, info: &DocInfo) {
         let largest = |side: fn((f32, f32)) -> f32| info.pages.iter().map(|p| side(self.display_size(p))).fold(1.0, f32::max);
         let max_w = largest(|s| s.0);
@@ -2266,7 +2273,7 @@ impl DocView {
         } else {
             (max_w, largest(|s| s.1))
         };
-        let avail_w = (self.viewport_w - 2.0 * SIDE).max(100.0);
+        let avail_w = (self.viewport_w - 2.0 * self.side()).max(100.0);
         let per_row = if self.layout == PageLayout::TwoUp { 2.0 } else { 1.0 };
         match self.fit {
             Fit::Width => self.zoom = (avail_w - self.page_gap() * (per_row - 1.0)) / (w * PT * per_row),
@@ -2288,7 +2295,7 @@ impl DocView {
         let shown = info.pages.iter().enumerate().filter(|&(i, _)| single.is_none_or(|c| c == i));
         let max_w = shown.map(|(_, p)| self.display_size(p).0).fold(0.0, f32::max);
         let per_row = if self.layout == PageLayout::TwoUp { 2.0 } else { 1.0 };
-        (max_w * self.zoom * PT * per_row + 2.0 * SIDE).max(avail_w)
+        (max_w * self.zoom * PT * per_row + 2.0 * self.side()).max(avail_w)
     }
 
     /// Page rects in content coordinates (origin at the scroll content's top-left).
@@ -2311,7 +2318,7 @@ impl DocView {
             PageLayout::Single => {
                 for p in &info.pages {
                     let size = page_size(p);
-                    rects.push(Rect::from_min_size(pos2(((content_w - size.x) / 2.0).max(SIDE), y), size));
+                    rects.push(Rect::from_min_size(pos2(((content_w - size.x) / 2.0).max(self.side()), y), size));
                     y += size.y + gap;
                 }
             }
@@ -2326,7 +2333,11 @@ impl DocView {
                     let sizes: Vec<Vec2> = pair.iter().map(page_size).collect();
                     let row_w: f32 = sizes.iter().map(|v| v.x).sum::<f32>() + gap * (sizes.len() as f32 - 1.0);
                     let row_h = sizes.iter().map(|v| v.y).fold(0.0, f32::max);
-                    let mut x = if self.cover && ri == 0 { (content_w / 2.0 + gap / 2.0).max(SIDE) } else { ((content_w - row_w) / 2.0).max(SIDE) };
+                    let mut x = if self.cover && ri == 0 {
+                        (content_w / 2.0 + gap / 2.0).max(self.side())
+                    } else {
+                        ((content_w - row_w) / 2.0).max(self.side())
+                    };
                     for size in sizes {
                         rects.push(Rect::from_min_size(pos2(x, y + (row_h - size.y) / 2.0), size));
                         x += size.x + gap;
@@ -3089,7 +3100,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
         // The page counts with its side gutters, which keep its edge clear of the floating
         // quick-action bar as the layout does.
         let (x, w) = (view.last_scroll.x, avail.width());
-        let (left, right) = (r.left() - SIDE, r.right() + SIDE);
+        let (left, right) = (r.left() - view.side(), r.right() + view.side());
         let target = if right - left <= w { if left >= x && right <= x + w { x } else { r.center().x - w / 2.0 } } else { x.clamp(left, right - w) };
         if (target - x).abs() > 0.5 {
             scroll = scroll.horizontal_scroll_offset(target.clamp(0.0, (content_w - w).max(0.0)));
@@ -4519,7 +4530,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     }
     // Read mode hides the tools (#2646), and full screen is the page and nothing else (#1459);
     // the quick tools come back with the window.
-    if app.mode != crate::Mode::Read && !app.full_screen {
+    if app.mode != crate::Mode::Read && !app.full_screen && crate::axion_shell::size(ui.ctx()) != crate::axion_shell::Size::Phone {
         quick_bar(app, avail, ui);
     }
     if let Some((source, file, destination)) = remote_open {
@@ -5110,24 +5121,30 @@ fn notice_bar(ui: &mut egui::Ui, t: &Tokens, icon: &str, icon_color: Color32, te
     });
 }
 
-/// The floating quick-action bar at the left edge of the document area.
+/// The floating quick-action bar, centred at the bottom of the document area (Axion layout): the
+/// pointer tools, the comment groups and Fill & Sign, then the green Sign button.
 fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
-    let pos = area.left_top() + vec2(14.0, 14.0);
-    egui::Area::new(egui::Id::new("quick-bar")).order(egui::Order::Middle).fixed_pos(pos).show(ui.ctx(), |ui| {
+    let pos = area.center_bottom() - vec2(0.0, 18.0);
+    egui::Area::new(egui::Id::new("quick-bar")).order(egui::Order::Middle).fixed_pos(pos).pivot(egui::Align2::CENTER_BOTTOM).show(ui.ctx(), |ui| {
         egui::Frame::NONE
             .fill(t.card)
-            .stroke(Stroke::new(1.0, t.border))
-            .corner_radius(CornerRadius::same(12))
-            .shadow(egui::Shadow { offset: [0, 4], blur: 16, spread: 0, color: Color32::from_black_alpha(if t.dark() { 100 } else { 28 }) })
+            .stroke(Stroke::new(1.0, t.divider))
+            .corner_radius(CornerRadius::same(30))
+            .shadow(egui::Shadow {
+                offset: [0, 10],
+                blur: 30,
+                spread: 0,
+                color: if t.dark() { Color32::from_black_alpha(110) } else { t.page_shadow.gamma_multiply(1.6) },
+            })
             .inner_margin(egui::Margin::same(6))
             .show(ui, |ui| {
-                ui.spacing_mut().item_spacing.y = 2.0;
-                ui.vertical(|ui| {
-                    if icons::button(ui, "mouse-pointer-2", 32.0, app.quick_tool == QuickTool::Select, tl!("Select (V)")).clicked() {
+                ui.spacing_mut().item_spacing.x = 4.0;
+                ui.horizontal(|ui| {
+                    if crate::axion_shell::tool_button(ui, &t, "mouse-pointer-2", app.quick_tool == QuickTool::Select, tl!("Select (V)")).clicked() {
                         app.quick_tool = QuickTool::Select;
                     }
-                    if icons::button(ui, "hand", 32.0, app.quick_tool == QuickTool::Hand, tl!("Hand (H)")).clicked() {
+                    if crate::axion_shell::tool_button(ui, &t, "hand", app.quick_tool == QuickTool::Hand, tl!("Hand (H)")).clicked() {
                         app.quick_tool = QuickTool::Hand;
                     }
                     // Comment ▸, Highlight ▸, Draw ▸ (Acrobat's comment toolbar groups). Clicking a
@@ -5135,7 +5152,7 @@ fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
                     for g in 0..comments::GROUPS.len() {
                         let current = app.comment_prefs.group_tool[g];
                         let active = matches!(app.quick_tool, QuickTool::Comment(t) if t.group() == g);
-                        let resp = icons::button(ui, current.icon(), 32.0, active, tl!(current.label()));
+                        let resp = crate::axion_shell::tool_button(ui, &t, current.icon(), active, tl!(current.label()));
                         // A small corner triangle marks the flyout.
                         let r = resp.rect;
                         let tri = [r.right_bottom() + vec2(-4.0, -4.0), r.right_bottom() + vec2(-9.0, -4.0), r.right_bottom() + vec2(-4.0, -9.0)];
@@ -5146,7 +5163,7 @@ fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
                         }
                         egui::Popup::menu(&resp)
                             .open_memory(open.then_some(egui::SetOpenCommand::Toggle))
-                            .align(egui::RectAlign::RIGHT_START)
+                            .align(egui::RectAlign::TOP_START)
                             .gap(6.0)
                             .show(|ui| {
                                 for tool in comments::GROUPS[g] {
@@ -5188,7 +5205,7 @@ fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
                     // or the tool is in use.
                     if app.mode == crate::Mode::Edit || app.quick_tool == QuickTool::EditText {
                         let on = app.quick_tool == QuickTool::EditText;
-                        if icons::button(ui, "text-cursor-input", 32.0, on, tl!("Edit text & images")).clicked() {
+                        if crate::axion_shell::tool_button(ui, &t, "text-cursor-input", on, tl!("Edit text & images")).clicked() {
                             if on {
                                 app.put_down_edit_text();
                             } else {
@@ -5202,10 +5219,10 @@ fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
                         _ => None,
                     };
                     let shown = current_fill.unwrap_or(crate::fill_sign::FillTool::Text);
-                    let resp = icons::button(
+                    let resp = crate::axion_shell::tool_button(
                         ui,
+                        &t,
                         if current_fill.is_some() { shown.icon() } else { "pen-line" },
-                        32.0,
                         current_fill.is_some(),
                         tl!("Fill & Sign"),
                     );
@@ -5222,7 +5239,7 @@ fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
                     let open = (resp.clicked() && current_fill.is_some()) || resp.secondary_clicked();
                     egui::Popup::menu(&resp)
                         .open_memory(open.then_some(egui::SetOpenCommand::Toggle))
-                        .align(egui::RectAlign::RIGHT_START)
+                        .align(egui::RectAlign::TOP_START)
                         .gap(6.0)
                         .show(|ui| {
                             for tool in crate::fill_sign::FILL_TOOLS {
@@ -5294,8 +5311,8 @@ fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
                         }
                     }
                     if let QuickTool::Comment(tool) = app.quick_tool {
-                        let (r, _) = ui.allocate_exact_size(vec2(32.0, 9.0), Sense::hover());
-                        ui.painter().hline(r.x_range().shrink(6.0), r.center().y, Stroke::new(1.0, t.divider));
+                        let (r, _) = ui.allocate_exact_size(vec2(9.0, 32.0), Sense::hover());
+                        ui.painter().vline(r.center().x, r.y_range().shrink(6.0), Stroke::new(1.0, t.divider));
                         if let Some(color) = comments::quick_bar_controls(ui, tool, &mut app.comment_prefs)
                             && let Some((index, id)) = app.active_ids()
                             && let Some((page, annotation)) = app.views.get(index).and_then(|view| view.comments.selected)
@@ -5317,6 +5334,11 @@ fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
                                 endings: None,
                             });
                         }
+                    }
+                    let (r, _) = ui.allocate_exact_size(vec2(9.0, 40.0), Sense::hover());
+                    ui.painter().vline(r.center().x, r.y_range().shrink(6.0), Stroke::new(1.0, t.divider));
+                    if crate::axion_shell::sign_button(ui, &t).clicked() {
+                        app.select_tool("fill_sign");
                     }
                 });
             });

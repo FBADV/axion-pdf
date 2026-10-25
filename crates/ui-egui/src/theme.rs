@@ -64,6 +64,8 @@ pub struct Tokens {
     pub accent_soft: Color32,
     pub field: Color32,
     pub badge_new: Color32,
+    /// Sign actions (Axion's green).
+    pub sign: Color32,
     pub page_shadow: Color32,
     pub radius: u8,
 }
@@ -73,34 +75,36 @@ impl Tokens {
         match kind {
             ThemeKind::Light => Self {
                 kind,
-                titlebar: Color32::from_rgb(0xE7, 0xEE, 0xF9),
-                chrome: Color32::from_rgb(0xF7, 0xF9, 0xFD),
-                panel: Color32::from_rgb(0xFB, 0xFC, 0xFE),
-                pasteboard: Color32::from_rgb(0xED, 0xF2, 0xF9),
+                // Axion design system (Painel Hoje): cool grey canvas, white surfaces, one blue.
+                titlebar: Color32::from_rgb(0xF3, 0xF5, 0xF9),
+                chrome: Color32::from_rgb(0xF8, 0xF9, 0xFC),
+                panel: Color32::from_rgb(0xFF, 0xFF, 0xFF),
+                pasteboard: Color32::from_rgb(0xF3, 0xF5, 0xF9),
                 card: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-                border: Color32::from_rgb(0xD9, 0xE2, 0xEF),
-                divider: Color32::from_rgb(0xE6, 0xEC, 0xF5),
-                text: Color32::from_rgb(0x1B, 0x24, 0x33),
-                text_muted: Color32::from_rgb(0x4C, 0x58, 0x6C),
-                text_faint: Color32::from_rgb(0x5A, 0x65, 0x78),
-                icon: Color32::from_rgb(0x34, 0x42, 0x5A),
-                hover: Color32::from_rgb(0xEC, 0xF2, 0xFC),
-                pressed: Color32::from_rgb(0xDF, 0xE8, 0xF7),
-                selected: Color32::from_rgb(0xDC, 0xE8, 0xFD),
-                accent: Color32::from_rgb(0x2F, 0x63, 0xD6),
-                accent_text: Color32::from_rgb(0x24, 0x55, 0xBE),
-                accent_soft: Color32::from_rgb(0xE2, 0xEC, 0xFD),
+                border: Color32::from_rgb(0xDF, 0xE3, 0xEA),
+                divider: Color32::from_rgb(0xE7, 0xEA, 0xF0),
+                text: Color32::from_rgb(0x1A, 0x22, 0x32),
+                text_muted: Color32::from_rgb(0x5A, 0x64, 0x76),
+                text_faint: Color32::from_rgb(0x5F, 0x69, 0x7B),
+                icon: Color32::from_rgb(0x34, 0x3D, 0x4F),
+                hover: Color32::from_rgb(0xF1, 0xF4, 0xF9),
+                pressed: Color32::from_rgb(0xE6, 0xEB, 0xF3),
+                selected: Color32::from_rgb(0xE2, 0xEB, 0xFD),
+                accent: Color32::from_rgb(0x2C, 0x5F, 0xD3),
+                accent_text: Color32::from_rgb(0x1F, 0x4B, 0xB0),
+                accent_soft: Color32::from_rgb(0xED, 0xF3, 0xFE),
                 field: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-                badge_new: Color32::from_rgb(0xE8, 0x60, 0x4C),
-                page_shadow: Color32::from_rgba_unmultiplied(0x16, 0x2A, 0x55, 30),
+                badge_new: Color32::from_rgb(0xD9, 0x3B, 0x2F),
+                sign: Color32::from_rgb(0x0D, 0x74, 0x69),
+                page_shadow: Color32::from_rgba_unmultiplied(0x10, 0x18, 0x28, 26),
                 radius: 10,
             },
             ThemeKind::Dark => Self {
                 kind,
-                titlebar: Color32::from_rgb(0x11, 0x18, 0x27),
+                titlebar: Color32::from_rgb(0x10, 0x15, 0x1E),
                 chrome: Color32::from_rgb(0x17, 0x20, 0x33),
                 panel: Color32::from_rgb(0x17, 0x20, 0x33),
-                pasteboard: Color32::from_rgb(0x0E, 0x14, 0x20),
+                pasteboard: Color32::from_rgb(0x10, 0x15, 0x1E),
                 card: Color32::from_rgb(0x1E, 0x29, 0x40),
                 border: Color32::from_rgb(0x2D, 0x3A, 0x52),
                 divider: Color32::from_rgb(0x25, 0x31, 0x49),
@@ -111,11 +115,12 @@ impl Tokens {
                 hover: Color32::from_rgb(0x23, 0x30, 0x4A),
                 pressed: Color32::from_rgb(0x2C, 0x3B, 0x5A),
                 selected: Color32::from_rgb(0x23, 0x3A, 0x66),
-                accent: Color32::from_rgb(0x6E, 0x9B, 0xF7),
+                accent: Color32::from_rgb(0x3B, 0x6F, 0xE0),
                 accent_text: Color32::from_rgb(0x9D, 0xBD, 0xFA),
                 accent_soft: Color32::from_rgb(0x22, 0x36, 0x5C),
                 field: Color32::from_rgb(0x13, 0x1B, 0x2B),
                 badge_new: Color32::from_rgb(0xF0, 0x80, 0x6C),
+                sign: Color32::from_rgb(0x1F, 0x9A, 0x8B),
                 page_shadow: Color32::from_black_alpha(130),
                 radius: 10,
             },
@@ -461,8 +466,10 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
         color: if t.dark() { Color32::from_black_alpha(100) } else { Color32::from_rgba_unmultiplied(0x16, 0x2A, 0x55, 28) },
     };
     for w in [&mut v.widgets.noninteractive, &mut v.widgets.inactive, &mut v.widgets.hovered, &mut v.widgets.active, &mut v.widgets.open] {
-        w.corner_radius = CornerRadius::same(t.radius);
+        w.corner_radius = CornerRadius::same(8);
         w.fg_stroke.color = t.text;
+        // Axion: controls never grow on hover or press; only their colour answers.
+        w.expansion = 0.0;
     }
     v.widgets.noninteractive.bg_stroke = Stroke::new(1.0, t.divider);
     v.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
@@ -476,6 +483,9 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
     // Stock buttons (menus, dialogs) use the same pointing hand as the custom chrome.
     v.interact_cursor = Some(egui::CursorIcon::PointingHand);
     v.widgets.open.weak_bg_fill = t.hover;
+    v.widgets.open.bg_fill = t.hover;
+    v.widgets.hovered.bg_stroke = Stroke::new(1.0, t.accent.gamma_multiply(0.45));
+    v.widgets.active.bg_stroke = Stroke::new(1.0, t.accent);
     // Crisper text at 100–150 % scaling (#76): glyphs sit on whole pixels instead of being
     // rendered at quarter-pixel offsets, which egui notes blurs them. In the light theme, a mild
     // gamma darkens the antialiased edges of dark text (egui's default is linear, which reads thin
@@ -490,15 +500,26 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
         s.spacing.item_spacing = egui::vec2(8.0, 6.0);
         s.spacing.button_padding = egui::vec2(12.0, 6.0);
         s.spacing.menu_margin = egui::Margin::same(8);
+        s.spacing.window_margin = egui::Margin::symmetric(20, 14);
+        s.spacing.icon_width = 16.0;
+        s.spacing.icon_width_inner = 9.0;
+        s.spacing.icon_spacing = 8.0;
+        s.spacing.interact_size.y = 28.0;
+        s.spacing.menu_spacing = 4.0;
         s.spacing.scroll.bar_width = 8.0;
         s.spacing.scroll.floating = true;
-        s.spacing.scroll.floating_width = 3.0;
+        s.spacing.scroll.floating_width = 4.0;
         s.spacing.scroll.foreground_color = true;
-        s.text_styles.insert(egui::TextStyle::Body, regular(13.0));
-        s.text_styles.insert(egui::TextStyle::Button, regular(13.0));
-        s.text_styles.insert(egui::TextStyle::Small, regular(11.0));
-        s.text_styles.insert(egui::TextStyle::Heading, semibold(17.0));
+        s.spacing.scroll.dormant_handle_opacity = 0.0;
+        s.spacing.scroll.active_handle_opacity = 0.3;
+        s.spacing.scroll.interact_handle_opacity = 0.55;
+        s.text_styles.insert(egui::TextStyle::Body, regular(13.5));
+        s.text_styles.insert(egui::TextStyle::Button, regular(13.5));
+        s.text_styles.insert(egui::TextStyle::Small, regular(11.5));
+        s.text_styles.insert(egui::TextStyle::Heading, semibold(18.0));
         s.interaction.tooltip_delay = 0.35;
+        // Interface text is not document text: a drag or a long press never selects it.
+        s.interaction.selectable_labels = false;
     });
     let style = ctx.global_style();
     ctx.set_style_of(egui::Theme::Light, style.clone());

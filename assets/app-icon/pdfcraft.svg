@@ -1,28 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
-      <stop offset="0" stop-color="#A9C6FA"/><stop offset="1" stop-color="#2E5CCB"/>
+    <linearGradient id="bg" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#FF7452"/><stop offset=".48" stop-color="#C81E3A"/><stop offset="1" stop-color="#5E0A1F"/>
     </linearGradient>
-    <linearGradient id="gl" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".45"/><stop offset=".55" stop-color="#FFFFFF" stop-opacity="0"/>
-    </linearGradient>
+    <radialGradient id="glow" cx=".28" cy=".12" r=".75">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".42"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
     <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EEF3FC"/>
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFF4F3"/>
     </linearGradient>
-    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0B2A6B" flood-opacity=".28"/>
+    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C81E3A"/><stop offset="1" stop-color="#7A0E26"/>
+    </linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000000" flood-opacity=".30"/>
     </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <rect width="512" height="512" rx="112" fill="url(#gl)"/>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#glow)"/>
+  <ellipse cx="256" cy="268" rx="214" ry="74" transform="rotate(-24 256 268)" fill="none" stroke="#FFFFFF" stroke-opacity=".16" stroke-width="10"/>
   <g filter="url(#sh)">
-    <path d="M150 92 H306 L372 158 V404 a24 24 0 0 1 -24 24 H150 a24 24 0 0 1 -24 -24 V116 a24 24 0 0 1 24 -24 Z" fill="url(#pg)"/>
-    <path d="M306 92 V138 a20 20 0 0 0 20 20 H372 Z" fill="#C9D8F4"/>
+    <path d="M160 78 H300 L364 142 V410 a28 28 0 0 1 -28 28 H160 a28 28 0 0 1 -28 -28 V106 a28 28 0 0 1 28 -28 Z" fill="url(#pg)"/>
+    <path d="M300 78 V122 a20 20 0 0 0 20 20 H364 Z" fill="#F6C9CC"/>
   </g>
-  <rect x="164" y="196" width="150" height="16" rx="8" fill="#BCCDEB"/>
-  <rect x="164" y="232" width="176" height="16" rx="8" fill="#BCCDEB"/>
-  <rect x="164" y="268" width="120" height="16" rx="8" fill="#BCCDEB"/>
-  <rect x="98" y="318" width="214" height="84" rx="22" fill="#E8604C"/>
-  <path d="M132 380 V340 h18 a14 14 0 0 1 0 28 h-18 M184 340 v40 h12 a20 20 0 0 0 0 -40 Z M240 380 V340 h30 M240 360 h24"
-        stroke="#FFFFFF" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="166" y="176" width="168" height="14" rx="7" fill="#EBC9CC"/>
+  <rect x="166" y="210" width="168" height="14" rx="7" fill="#EBC9CC"/>
+  <rect x="166" y="244" width="120" height="14" rx="7" fill="#EBC9CC"/>
+  <rect x="150" y="286" width="196" height="76" rx="22" fill="url(#ink)"/>
+  <path d="M198.78515625 342.0V305.623046875H212.3837890625Q216.55859375 305.623046875 219.4150390625 307.185546875Q222.271484375 308.748046875 223.736328125 311.47021484375Q225.201171875 314.1923828125 225.201171875 317.6591796875Q225.201171875 321.150390625 223.72412109375 323.87255859375Q222.2470703125 326.5947265625 219.3662109375 328.14501953125Q216.4853515625 329.6953125 212.2861328125 329.6953125H205.3037109375V342.0ZM205.3037109375 324.32421875H211.431640625Q215.1181640625 324.32421875 216.8271484375 322.4443359375Q218.5361328125 320.564453125 218.5361328125 317.6591796875Q218.5361328125 314.75390625 216.8271484375 312.9228515625Q215.1181640625 311.091796875 211.3828125 311.091796875H205.3037109375Z M247.3408203125 342.0H235.0361328125V305.623046875H247.5849609375Q253.0048828125 305.623046875 256.89892578125 307.80810546875Q260.79296875 309.9931640625 262.8681640625 314.05810546875Q264.943359375 318.123046875 264.943359375 323.7626953125Q264.943359375 329.451171875 262.85595703125 333.54052734375Q260.7685546875 337.6298828125 256.82568359375 339.81494140625Q252.8828125 342.0 247.3408203125 342.0ZM241.5546875 336.3603515625H247.0234375Q258.5224609375 336.3603515625 258.5224609375 323.7626953125Q258.5224609375 311.2626953125 247.1943359375 311.2626953125H241.5546875Z M275.14453125 342.0V305.623046875H298.435546875V311.1162109375H281.6630859375V322.029296875H296.7998046875V327.44921875H281.6630859375V342.0Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.25" stroke-linejoin="round"/>
+  <circle cx="350" cy="392" r="46" fill="#FFFFFF"/>
+  <circle cx="350" cy="392" r="36" fill="url(#ink)"/>
+  <path d="M332 392 l12 12 l22 -24" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

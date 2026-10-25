@@ -103,11 +103,15 @@ pub(crate) fn options_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens)
     group(ui, &crate::i18n::fmt(tl!("Checking Options ({on} of 32 in all categories)"), &[("on", &on.to_string())]), &mut |ui| {
         ui.horizontal(|ui| {
             ui.label(tl!("Category:"));
-            egui::ComboBox::from_id_salt("a11y-category").selected_text(tl!(o.category.label())).width(260.0).show_ui(ui, |ui| {
-                for c in Category::ALL {
-                    ui.selectable_value(&mut o.category, c, tl!(c.label()));
-                }
-            });
+            egui::ComboBox::from_id_salt("a11y-category")
+                .icon(crate::widgets::combo_icon)
+                .selected_text(tl!(o.category.label()))
+                .width(260.0)
+                .show_ui(ui, |ui| {
+                    for c in Category::ALL {
+                        ui.selectable_value(&mut o.category, c, tl!(c.label()));
+                    }
+                });
         });
         ui.add_space(4.0);
         for r in Rule::ALL.into_iter().filter(|r| r.category() == o.category) {

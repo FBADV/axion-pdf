@@ -6,7 +6,7 @@
 use egui::{Align, Align2, Color32, CornerRadius, Layout, Rect, Sense, Stroke, vec2};
 
 use crate::theme::{self, ThemePreference, Tokens};
-use crate::{Dialog, Mode, PdfCraftApp, PropsTab, icons, window_controls};
+use crate::{Dialog, Mode, PdfCraftApp, icons, window_controls};
 
 /// The window is a phone below this width: top bar and bottom tabs, no sidebar.
 pub const PHONE: f32 = 760.0;
@@ -60,7 +60,11 @@ fn pill(ui: &mut egui::Ui, t: &Tokens, icon: Option<&str>, label: &str, primary:
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label));
     let press = theme::Press::track(ui, &resp);
     let (fill, ink, stroke) = if primary {
-        (press.fill(t.accent, t.accent_text, t.accent_text), Color32::WHITE, Stroke::NONE)
+        (
+            press.fill(t.accent, t.accent.lerp_to_gamma(Color32::BLACK, 0.15), t.accent.lerp_to_gamma(Color32::BLACK, 0.25)),
+            Color32::WHITE,
+            Stroke::NONE,
+        )
     } else {
         (press.fill(t.card, t.hover, t.pressed), t.text, Stroke::new(1.0, t.border))
     };
@@ -113,17 +117,45 @@ fn window_drag(ui: &egui::Ui, rect: Rect, salt: &str) {
 // Sidebar (desktop) and rail (tablet)
 // ---------------------------------------------------------------------------------------------
 
-/// The navigation entries: the home screen and the four workspaces of the original mode bar.
-const NAV: [(&str, &str, Option<Mode>); 5] = [
-    ("house", "Home", None),
-    ("layout-grid", "All tools", Some(Mode::AllTools)),
-    ("pen-line", "Edit", Some(Mode::Edit)),
-    ("file-output", "Convert", Some(Mode::Convert)),
-    ("signature", "E-Sign", Some(Mode::Sign)),
-];
+/// Where the sidebar takes you (the approved layout: Home, the document, all tools).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Nav {
+    Home,
+    Document,
+    Tools,
+}
+
+const NAV: [(&str, &str, Nav); 3] =
+    [("house", "Home", Nav::Home), ("file-text", "Document", Nav::Document), ("layout-grid", "All tools", Nav::Tools)];
 
 /// The four tool tiles under the open documents.
-const TILES: [(&str, &str); 4] = [("organize", "Organize"), ("fill_sign", "Sign"), ("comment", "Comment"), ("protect", "Protect")];
+const TILES: [(&str, &str); 4] = [("organize", "Organize"), ("fill_sign", "Sign"), ("comment", "Comment on"), ("protect", "Protect")];
+
+fn nav_selected(app: &PdfCraftApp, nav: Nav) -> bool {
+    let doc = app.active.is_some() && !app.combine_showing();
+    match nav {
+        Nav::Home => app.active.is_none() && !app.combine_showing() && !app.all_tools_full,
+        Nav::Document => doc && !(app.left_open && app.mode == Mode::AllTools),
+        Nav::Tools => (doc && app.left_open && app.mode == Mode::AllTools) || (app.active.is_none() && app.all_tools_full),
+    }
+}
+
+fn nav_go(app: &mut PdfCraftApp, nav: Nav) {
+    match nav {
+        Nav::Home => go(app, None),
+        Nav::Document => {
+            if app.active.is_none() && !app.views.is_empty() {
+                app.active = Some(0);
+            }
+            app.combine_tab.focused = false;
+            app.left_open = false;
+        }
+        Nav::Tools => {
+            go(app, Some(Mode::AllTools));
+            app.left_open = true;
+        }
+    }
+}
 
 pub fn sidebar(app: &mut PdfCraftApp, ui: &mut egui::Ui, rail: bool) {
     let t = Tokens::get(ui.ctx());
@@ -155,16 +187,9 @@ pub fn sidebar(app: &mut PdfCraftApp, ui: &mut egui::Ui, rail: bool) {
 
 fn sidebar_body(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
     ui.spacing_mut().item_spacing.y = 6.0;
-    ui.horizontal(|ui| {
-        ui.add_space(6.0);
-        mark(ui, 36.0);
-        ui.vertical(|ui| {
-            ui.spacing_mut().item_spacing.y = 0.0;
-            ui.label(egui::RichText::new("Axion PDF").font(theme::semibold(15.5)).color(t.text));
-            ui.label(egui::RichText::new("Bernardo Advogados").font(theme::regular(11.5)).color(t.text_muted));
-        });
-    });
-    ui.add_space(10.0);
+    // The brand block opens the full menu (File, Edit, Pages, View, Window, Help).
+    crate::chrome::main_menu_with(app, ui, |ui, t| brand_button(ui, t));
+    ui.add_space(8.0);
     // Open PDF, full width.
     let w = ui.available_width();
     ui.allocate_ui_with_layout(vec2(w, 44.0), Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
@@ -174,13 +199,10 @@ fn sidebar_body(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
         }
     });
     ui.add_space(10.0);
-    for (icon, label, mode) in NAV {
-        let selected = match mode {
-            None => app.active.is_none() && !app.combine_showing(),
-            Some(m) => app.active.is_some() && app.mode == m,
-        };
+    for (icon, label, nav) in NAV {
+        let selected = nav_selected(app, nav);
         if nav_row(ui, t, icon, tl!(label), selected).clicked() {
-            go(app, mode);
+            nav_go(app, nav);
         }
     }
     ui.add_space(12.0);
@@ -204,7 +226,7 @@ fn sidebar_body(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
     // Settings and the theme at the bottom.
     ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
         ui.horizontal(|ui| {
-            if nav_icon_text(ui, t, "settings", tl!("Preferences…")).clicked() {
+            if nav_icon_text(ui, t, "settings", tl!("App settings")).on_hover_text(tl!("Preferences…")).clicked() {
                 app.dialog = Some(Dialog::Preferences);
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| theme_switch(app, ui, t));
@@ -213,51 +235,74 @@ fn sidebar_body(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
 }
 
 fn rail_body(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
-    ui.spacing_mut().item_spacing.y = 4.0;
+    ui.spacing_mut().item_spacing.y = 6.0;
     ui.vertical_centered(|ui| {
-        mark(ui, 40.0);
-        ui.add_space(8.0);
-        let tip = crate::commands::command_tip(ui.ctx(), tl!("Open a PDF ({key})"), "file.open");
-        if rail_item(ui, t, "plus", tl!("Open"), false, true).on_hover_text(tip).clicked() {
-            app.open_dialog();
-        }
-        for (icon, label, mode) in NAV {
-            let selected = match mode {
-                None => app.active.is_none() && !app.combine_showing(),
-                Some(m) => app.active.is_some() && app.mode == m,
-            };
+        crate::chrome::main_menu_with(app, ui, |ui, _| mark(ui, 44.0).interact(Sense::click()).on_hover_text(tl!("Menu")));
+        ui.add_space(14.0);
+        for (icon, label, nav) in [("house", "Home", Nav::Home), ("file-text", "Document", Nav::Document), ("layout-grid", "Tools", Nav::Tools)] {
+            let selected = nav_selected(app, nav);
             if rail_item(ui, t, icon, tl!(label), selected, false).clicked() {
-                go(app, mode);
+                nav_go(app, nav);
             }
         }
-        // Open documents as numbered chips: the active one is highlighted.
-        if !app.views.is_empty() {
-            ui.add_space(6.0);
-            ui.painter().hline(ui.max_rect().x_range().shrink(14.0), ui.cursor().top(), Stroke::new(1.0, t.divider));
-            ui.add_space(8.0);
-            let mut pick = None;
-            for i in 0..app.views.len().min(6) {
-                let name = crate::canvas::tab_label(app, i).unwrap_or_default();
-                let selected = app.active == Some(i);
-                let (rect, resp) = ui.allocate_exact_size(vec2(52.0, 40.0), Sense::click());
-                let press = theme::Press::track(ui, &resp);
-                press.wash(ui, rect, 12, selected);
-                icons::paint(ui, rect, "file-text", 20.0, if selected { t.accent } else { t.icon });
-                if resp.on_hover_text(&name).clicked() {
-                    pick = Some(i);
-                }
-            }
-            if let Some(i) = pick {
-                app.active = Some(i);
+        let has_doc = app.active.is_some() && !app.combine_showing();
+        let convert = rail_item(ui, t, "file-output", tl!("Convert"), false, false);
+        convert_menu(app, &convert, t, egui::RectAlign::RIGHT_START, has_doc);
+        if rail_item(ui, t, "signature", tl!("Sign"), app.active.is_some() && app.mode == Mode::Sign, false).clicked() {
+            if has_doc {
+                app.select_tool("fill_sign");
+            } else {
+                go(app, Some(Mode::Sign));
             }
         }
     });
     ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
         theme_cycle(app, ui, t);
-        if icons::button(ui, "settings", 40.0, false, tl!("Preferences…")).clicked() {
-            app.dialog = Some(Dialog::Preferences);
-        }
     });
+}
+
+/// The brand block at the top of the sidebar: mark, name, office, and a chevron for the menu.
+fn brand_button(ui: &mut egui::Ui, t: &Tokens) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 48.0), Sense::click());
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tl!("Menu")));
+    let press = theme::Press::track(ui, &resp);
+    press.wash(ui, rect, 14, false);
+    let body = rect.translate(press.offset());
+    let mark_rect = Rect::from_min_size(body.min + vec2(6.0, 6.0), vec2(36.0, 36.0));
+    egui::Image::from_bytes("bytes://axion-mark.svg", include_bytes!("../../../assets/brand/axion-mark.svg")).paint_at(ui, mark_rect);
+    ui.painter().text(body.min + vec2(52.0, 16.0), Align2::LEFT_CENTER, "Axion PDF", theme::semibold(16.0), t.text);
+    ui.painter().text(body.min + vec2(52.0, 33.0), Align2::LEFT_CENTER, "Bernardo Advogados", theme::regular(12.5), t.text_muted);
+    icons::paint(ui, Rect::from_center_size(egui::pos2(body.right() - 16.0, body.center().y), vec2(16.0, 16.0)), "chevron-down", 15.0, t.text_muted);
+    theme::hand(resp.on_hover_text(tl!("Menu")))
+}
+
+/// A round tool button of the floating tool bar: 40 points, the accent wash when on.
+pub(crate) fn tool_button(ui: &mut egui::Ui, t: &Tokens, icon: &str, on: bool, tip: &str) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(vec2(44.0, 44.0), Sense::click());
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Button, ui.is_enabled(), on, tip));
+    let press = theme::Press::track(ui, &resp);
+    let fill = if on { press.fill(t.accent_soft, t.selected, t.selected) } else { press.fill(Color32::TRANSPARENT, t.hover, t.pressed) };
+    if fill.a() > 0 {
+        ui.painter().rect_filled(rect, CornerRadius::same(22), fill);
+    }
+    icons::paint(ui, rect.translate(press.offset()), icon, 19.0, if on { t.accent } else { t.icon });
+    theme::hand(resp.on_hover_text(tip))
+}
+
+/// The green Sign button at the end of the floating tool bar.
+pub(crate) fn sign_button(ui: &mut egui::Ui, t: &Tokens) -> egui::Response {
+    let label = tl!("Sign");
+    let font = theme::semibold(14.0);
+    let text_w = ui.fonts_mut(|f| f.layout_no_wrap(label.to_owned(), font.clone(), Color32::WHITE).size().x);
+    let (rect, resp) = ui.allocate_exact_size(vec2(text_w + 60.0, 44.0), Sense::click());
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label));
+    let press = theme::Press::track(ui, &resp);
+    let body = rect.translate(press.offset());
+    let fill = press.fill(t.sign, t.sign.lerp_to_gamma(Color32::BLACK, 0.12), t.sign.lerp_to_gamma(Color32::BLACK, 0.22));
+    ui.painter().rect_filled(body, CornerRadius::same(22), fill);
+    icons::paint(ui, Rect::from_center_size(egui::pos2(body.left() + 26.0, body.center().y), vec2(17.0, 17.0)), "signature", 17.0, Color32::WHITE);
+    ui.painter().text(egui::pos2(body.left() + 42.0, body.center().y), Align2::LEFT_CENTER, label, font, Color32::WHITE);
+    theme::hand(resp)
 }
 
 /// Go to the home screen (`None`) or a workspace.
@@ -290,7 +335,11 @@ fn wide_primary(ui: &mut egui::Ui, t: &Tokens, icon: &str, label: &str, width: f
     let body = rect.translate(press.offset());
     let lift = egui::Shadow { offset: [0, 6], blur: 14, spread: 0, color: t.accent.gamma_multiply(0.28) };
     ui.painter().add(lift.as_shape(body, CornerRadius::same(22)));
-    ui.painter().rect_filled(body, CornerRadius::same(22), press.fill(t.accent, t.accent_text, t.accent_text));
+    ui.painter().rect_filled(
+        body,
+        CornerRadius::same(22),
+        press.fill(t.accent, t.accent.lerp_to_gamma(Color32::BLACK, 0.15), t.accent.lerp_to_gamma(Color32::BLACK, 0.25)),
+    );
     let font = theme::semibold(14.0);
     let text_w = ui.fonts_mut(|f| f.layout_no_wrap(label.to_owned(), font.clone(), Color32::WHITE).size().x);
     let start = body.center().x - (text_w + 26.0) / 2.0;
@@ -331,7 +380,11 @@ fn rail_item(ui: &mut egui::Ui, t: &Tokens, icon: &str, label: &str, selected: b
     let body = rect.translate(press.offset());
     if primary {
         let chip = Rect::from_center_size(egui::pos2(body.center().x, body.top() + 18.0), vec2(44.0, 30.0));
-        ui.painter().rect_filled(chip, CornerRadius::same(15), press.fill(t.accent, t.accent_text, t.accent_text));
+        ui.painter().rect_filled(
+            chip,
+            CornerRadius::same(15),
+            press.fill(t.accent, t.accent.lerp_to_gamma(Color32::BLACK, 0.15), t.accent.lerp_to_gamma(Color32::BLACK, 0.25)),
+        );
         icons::paint(ui, chip, icon, 18.0, Color32::WHITE);
     } else {
         press.wash(ui, body, 14, selected);
@@ -360,13 +413,11 @@ fn tile(ui: &mut egui::Ui, t: &Tokens, icon: &str, label: &str, hue: Color32, wi
     let press = theme::Press::track(ui, &resp);
     let body = rect.translate(press.offset());
     ui.painter().rect(body, CornerRadius::same(14), press.fill(t.card, t.hover, t.pressed), Stroke::new(1.0, t.divider), egui::StrokeKind::Inside);
-    let chip = Rect::from_min_size(body.min + vec2(10.0, 9.0), vec2(26.0, 26.0));
-    ui.painter().rect_filled(chip, CornerRadius::same(8), hue.gamma_multiply(if t.dark() { 0.28 } else { 0.16 }));
-    icons::paint(ui, chip, icon, 16.0, hue);
-    let mut job = egui::text::LayoutJob::simple_singleline(label.to_owned(), theme::semibold(12.0), t.text);
-    job.wrap = egui::text::TextWrapping { max_width: width - 20.0, max_rows: 1, break_anywhere: true, ..Default::default() };
+    icons::paint(ui, Rect::from_min_size(body.min + vec2(12.0, 12.0), vec2(20.0, 20.0)), icon, 19.0, hue);
+    let mut job = egui::text::LayoutJob::simple_singleline(label.to_owned(), theme::semibold(13.0), t.text);
+    job.wrap = egui::text::TextWrapping { max_width: width - 24.0, max_rows: 1, break_anywhere: true, ..Default::default() };
     let galley = ui.fonts_mut(|f| f.layout_job(job));
-    ui.painter().galley(egui::pos2(body.left() + 10.0, body.bottom() - 22.0), galley, t.text);
+    ui.painter().galley(egui::pos2(body.left() + 12.0, body.bottom() - 25.0), galley, t.text);
     theme::hand(resp.on_hover_text(label))
 }
 
@@ -397,11 +448,12 @@ fn open_documents(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
             } else {
                 press.wash(ui, rect, 12, false);
             }
-            // A page with a coral PDF band.
-            let thumb = Rect::from_min_size(rect.min + vec2(10.0, 8.0), vec2(28.0, 36.0));
+            // A page with a red PDF label.
+            let thumb = Rect::from_min_size(rect.min + vec2(10.0, 8.0), vec2(30.0, 36.0));
             ui.painter().rect(thumb, CornerRadius::same(5), Color32::WHITE, Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
-            let band = Rect::from_min_size(egui::pos2(thumb.left() + 3.0, thumb.bottom() - 12.0), vec2(22.0, 8.0));
+            let band = Rect::from_min_size(egui::pos2(thumb.left() + 3.0, thumb.bottom() - 15.0), vec2(22.0, 10.0));
             ui.painter().rect_filled(band, CornerRadius::same(2), t.badge_new);
+            ui.painter().text(band.center(), Align2::CENTER_CENTER, "PDF", theme::semibold(7.5), Color32::WHITE);
             let text_w = rect.width() - 84.0;
             crate::widgets::row_text(
                 ui,
@@ -411,8 +463,11 @@ fn open_documents(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
                 t.text,
                 text_w,
             );
-            let detail =
-                format!("{}{}", crate::i18n::trn(crate::i18n::current(), pages as u64, "{n} page", "{n} pages"), if dirty { " · ●" } else { "" });
+            let detail = format!(
+                "{}{}",
+                crate::i18n::trn(crate::i18n::current(), pages as u64, "{n} page", "{n} pages"),
+                if dirty { format!(" · {}", tl!("edited")) } else { String::new() }
+            );
             ui.painter().text(rect.min + vec2(48.0, 36.0), Align2::LEFT_CENTER, detail, theme::regular(11.5), t.text_muted);
             let hovered = ui.rect_contains_pointer(rect);
             if hovered || selected {
@@ -524,12 +579,12 @@ pub fn command_bar(app: &mut PdfCraftApp, ui: &mut egui::Ui, tablet: bool) {
         .frame(egui::Frame::NONE.fill(t.pasteboard).inner_margin(egui::Margin { left: GAP as i8, right: GAP as i8, top, bottom: 0 }))
         .show(ui, |ui| {
             let full = ui.max_rect();
-            card(&t, 18).inner_margin(egui::Margin { left: 16, right: 10, top: 0, bottom: 0 }).show(ui, |ui| {
+            card(&t, 18).inner_margin(egui::Margin { left: 20, right: 8, top: 0, bottom: 0 }).show(ui, |ui| {
                 ui.set_height(60.0);
                 ui.set_width(ui.available_width());
                 window_drag(ui, full, "command-bar");
                 ui.horizontal_centered(|ui| {
-                    ui.spacing_mut().item_spacing.x = 8.0;
+                    ui.spacing_mut().item_spacing.x = 10.0;
                     if !controls.left.is_empty() {
                         ui.scope(|ui| {
                             ui.spacing_mut().item_spacing.x = 0.0;
@@ -537,19 +592,16 @@ pub fn command_bar(app: &mut PdfCraftApp, ui: &mut egui::Ui, tablet: bool) {
                         });
                         ui.add_space(window_controls::SIDE_GAP - 4.0);
                     }
-                    crate::chrome::main_menu(app, ui);
                     title_block(app, ui, &t, tablet);
-                    if let Some(index) = app.active
-                        && !app.combine_showing()
-                        && index < app.views.len()
-                    {
+                    let has_doc = app.active.is_some_and(|i| i < app.views.len()) && !app.combine_showing();
+                    if let Some(index) = app.active.filter(|_| has_doc) {
                         page_capsule(app, ui, &t, index);
                         if !tablet {
                             zoom_capsule(app, ui, &t, index);
                         }
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.spacing_mut().item_spacing.x = 6.0;
+                        ui.spacing_mut().item_spacing.x = 8.0;
                         if !controls.right.is_empty() {
                             let size = egui::vec2(window_controls::width(&controls.right) - window_controls::SIDE_GAP, window_controls::BUTTON);
                             ui.allocate_ui_with_layout(size, Layout::left_to_right(Align::Center), |ui| {
@@ -558,49 +610,120 @@ pub fn command_bar(app: &mut PdfCraftApp, ui: &mut egui::Ui, tablet: bool) {
                             });
                             ui.add_space(window_controls::SIDE_GAP - 4.0);
                         }
-                        let has_doc = app.active.is_some() && !app.combine_showing();
-                        ui.add_enabled_ui(has_doc, |ui| convert_button(app, ui, &t));
-                        if !tablet {
-                            ui.add_enabled_ui(has_doc, |ui| {
-                                let tip = crate::commands::command_tip(ui.ctx(), tl!("Save ({key})"), "file.save");
-                                if pill(ui, &t, Some("save"), tl!("Save"), false, 40.0).on_hover_text(tip).clicked() {
-                                    app.run_command("file.save");
+                        let resp = ui.add_enabled_ui(has_doc, |ui| pill_chevron(ui, &t, "file-output", tl!("Convert"), 44.0)).inner;
+                        convert_menu(app, &resp, &t, egui::RectAlign::BOTTOM_END, has_doc);
+                        if tablet {
+                            if round_button(ui, &t, "panel-right", tl!("Panels")).clicked() {
+                                app.axion_rail = !app.axion_rail;
+                                if !app.axion_rail {
+                                    app.right = None;
                                 }
-                            });
+                            }
+                            if round_button(ui, &t, "search", tl!("Find tools and commands")).clicked() {
+                                app.palette_open = true;
+                            }
                         } else {
                             ui.add_enabled_ui(has_doc, |ui| {
                                 let tip = crate::commands::command_tip(ui.ctx(), tl!("Save ({key})"), "file.save");
-                                if icons::button(ui, "save", 40.0, false, &tip).clicked() {
+                                if pill(ui, &t, Some("save"), tl!("Save"), false, 44.0).on_hover_text(tip).clicked() {
                                     app.run_command("file.save");
                                 }
                             });
-                        }
-                        ui.add_enabled_ui(has_doc, |ui| {
-                            let tip = crate::commands::command_tip(ui.ctx(), tl!("Print ({key})"), "print.dialog");
-                            let may_print = !has_doc || pdfcraft_engine::commands::command("print.dialog").is_some_and(|c| app.command_enabled(c));
-                            let mut print = ui.add_enabled_ui(may_print, |ui| icons::button(ui, "printer", 38.0, false, &tip)).inner;
-                            if !may_print {
-                                print = print.on_disabled_hover_text(crate::print_refused());
-                            }
-                            if print.clicked() {
-                                app.run_command("print.dialog");
-                            }
-                            let tip = crate::commands::command_tip(ui.ctx(), tl!("Document properties ({key})"), "file.properties");
-                            if icons::button(ui, "info", 38.0, false, &tip).clicked() {
-                                app.dialog = Some(Dialog::Properties(PropsTab::Description));
-                            }
-                        });
-                        if tablet {
-                            if icons::button(ui, "search", 38.0, false, tl!("Find tools and commands")).clicked() {
+                            let room = (ui.available_width() - 12.0).clamp(150.0, 250.0);
+                            if crate::widgets::search_box(ui, tl!("Search text or tools"), room).clicked() {
                                 app.palette_open = true;
                             }
-                        } else if crate::widgets::search_box(ui, tl!("Find tools and commands"), 230.0).clicked() {
-                            app.palette_open = true;
                         }
                     });
                 });
             });
         });
+}
+
+/// A primary pill with an icon, a label and a chevron (Convert ▾).
+fn pill_chevron(ui: &mut egui::Ui, t: &Tokens, icon: &str, label: &str, height: f32) -> egui::Response {
+    let font = theme::semibold(14.0);
+    let text_w = ui.fonts_mut(|f| f.layout_no_wrap(label.to_owned(), font.clone(), Color32::WHITE).size().x);
+    let (rect, resp) = ui.allocate_exact_size(vec2(text_w + 78.0, height), Sense::click());
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label));
+    let press = theme::Press::track(ui, &resp);
+    let body = rect.translate(press.offset());
+    let enabled = ui.is_enabled();
+    let base = if enabled { t.accent } else { t.accent.gamma_multiply(0.45) };
+    if enabled {
+        let lift = egui::Shadow { offset: [0, 6], blur: 16, spread: 0, color: t.accent.gamma_multiply(0.30) };
+        ui.painter().add(lift.as_shape(body, CornerRadius::same((height / 2.0) as u8)));
+    }
+    ui.painter().rect_filled(
+        body,
+        CornerRadius::same((height / 2.0) as u8),
+        press.fill(base, base.lerp_to_gamma(Color32::BLACK, 0.15), base.lerp_to_gamma(Color32::BLACK, 0.25)),
+    );
+    icons::paint(ui, Rect::from_center_size(egui::pos2(body.left() + 26.0, body.center().y), vec2(17.0, 17.0)), icon, 17.0, Color32::WHITE);
+    ui.painter().text(egui::pos2(body.left() + 42.0, body.center().y), Align2::LEFT_CENTER, label, font, Color32::WHITE);
+    icons::paint(
+        ui,
+        Rect::from_center_size(egui::pos2(body.right() - 22.0, body.center().y), vec2(14.0, 14.0)),
+        "chevron-down",
+        14.0,
+        Color32::WHITE,
+    );
+    theme::hand(resp)
+}
+
+/// The Convert menu under `resp`: Word, Markdown, PowerPoint and Images, then a submenu with
+/// HTML, RTF and plain text. Without a document a choice opens one first.
+fn convert_menu(app: &mut PdfCraftApp, resp: &egui::Response, t: &Tokens, align: egui::RectAlign, has_doc: bool) {
+    let mut run = None;
+    egui::Popup::menu(resp).id(resp.id.with("axion-convert")).align(align).gap(8.0).show(|ui| {
+        ui.set_width(296.0);
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            ui.add_space(10.0);
+            ui.label(egui::RichText::new(tl!("Save a copy as").to_uppercase()).font(theme::semibold(11.0)).color(t.text_muted));
+        });
+        ui.add_space(2.0);
+        for (badge, label, hint, command) in CONVERT.iter().take(4) {
+            if format_row(ui, t, badge, tl!(label), tl!(hint)).clicked() {
+                run = Some(*command);
+                ui.close();
+            }
+        }
+        let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 9.0), Sense::hover());
+        ui.painter().hline(r.x_range().shrink(8.0), r.center().y, Stroke::new(1.0, t.divider));
+        let more = more_row(ui, t, tl!("HTML, RTF and plain text"));
+        egui::Popup::menu(&more)
+            .id(more.id.with("more"))
+            .align(egui::RectAlign::RIGHT_START)
+            .gap(6.0)
+            .open_memory(more.clicked().then_some(egui::SetOpenCommand::Toggle))
+            .show(|ui| {
+                ui.set_width(280.0);
+                for (badge, label, hint, command) in CONVERT.iter().skip(4) {
+                    if format_row(ui, t, badge, tl!(label), tl!(hint)).clicked() {
+                        run = Some(*command);
+                        ui.close();
+                    }
+                }
+            });
+    });
+    if let Some(command) = run {
+        if has_doc {
+            app.execute(command);
+        } else {
+            app.open_dialog();
+        }
+    }
+}
+
+fn more_row(ui: &mut egui::Ui, t: &Tokens, label: &str) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::click());
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
+    let press = theme::Press::track(ui, &resp);
+    press.wash(ui, rect, 10, false);
+    ui.painter().text(rect.left_center() + vec2(12.0, 0.0), Align2::LEFT_CENTER, label, theme::regular(13.5), t.text_muted);
+    icons::paint(ui, Rect::from_center_size(rect.right_center() - vec2(18.0, 0.0), vec2(14.0, 14.0)), "chevron-right", 14.0, t.text_muted);
+    theme::hand(resp)
 }
 
 /// The document's name and where it was saved, or the app's name on the home screen.
@@ -649,56 +772,42 @@ fn page_capsule(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens, index: usi
 fn zoom_capsule(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens, index: usize) {
     let view = &mut app.views[index];
     capsule(ui, t, 128.0, |ui| {
-        if icons::button(ui, "zoom-out", 30.0, false, tl!("Zoom out")).clicked() {
+        if icons::button(ui, "minus", 30.0, false, tl!("Zoom out")).clicked() {
             view.zoom_step(false);
         }
         ui.allocate_ui_with_layout(vec2(56.0, 30.0), Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
             ui.label(egui::RichText::new(format!("{:.0}%", view.zoom * 100.0)).font(theme::semibold(13.0)).color(t.text));
         });
-        if icons::button(ui, "zoom-in", 30.0, false, tl!("Zoom in")).clicked() {
+        if icons::button(ui, "plus", 30.0, false, tl!("Zoom in")).clicked() {
             view.zoom_step(true);
         }
     });
 }
 
-/// The Convert button and its menu of formats.
-fn convert_button(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
-    let resp = pill(ui, t, Some("file-output"), tl!("Convert"), true, 40.0);
-    let mut run = None;
-    egui::Popup::menu(&resp).id(resp.id.with("axion-convert")).show(|ui| {
-        ui.set_min_width(300.0);
-        ui.label(egui::RichText::new(tl!("Save a copy as").to_uppercase()).font(theme::semibold(11.0)).color(t.text_muted));
-        ui.add_space(4.0);
-        for (badge, label, hint, command) in CONVERT {
-            if format_row(ui, t, badge, tl!(label), tl!(hint)).clicked() {
-                run = Some(command);
-                ui.close();
-            }
-        }
-    });
-    if let Some(command) = run {
-        app.execute(command);
-    }
-}
-
 /// One format in the Convert menu: a tinted badge, the format's name and a line about it.
 pub fn format_row(ui: &mut egui::Ui, t: &Tokens, badge: &str, label: &str, hint: &str) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width().max(280.0), 52.0), Sense::click());
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width().max(260.0), 54.0), Sense::click());
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
     let press = theme::Press::track(ui, &resp);
-    press.wash(ui, rect, 12, false);
+    let hot = resp.hovered() || resp.has_focus();
+    let fill = if hot { press.fill(t.accent_soft, t.accent_soft, t.selected) } else { Color32::TRANSPARENT };
+    if fill.a() > 0 {
+        ui.painter().rect_filled(rect, CornerRadius::same(12), fill);
+    }
     let hue = match badge {
         "DOCX" => Color32::from_rgb(0x2C, 0x5F, 0xD3),
         "MD" => Color32::from_rgb(0x0D, 0x74, 0x69),
         "PPT" => Color32::from_rgb(0xA8, 0x48, 0x1F),
         "IMG" => Color32::from_rgb(0x63, 0x45, 0xC0),
+        "HTML" => Color32::from_rgb(0xB4, 0x3C, 0x2A),
+        "RTF" => Color32::from_rgb(0x2E, 0x6F, 0x8E),
         _ => t.text_muted,
     };
-    let chip = Rect::from_min_size(rect.min + vec2(10.0, 9.0), vec2(36.0, 34.0));
-    ui.painter().rect_filled(chip, CornerRadius::same(10), hue.gamma_multiply(if t.dark() { 0.30 } else { 0.16 }));
-    ui.painter().text(chip.center(), Align2::CENTER_CENTER, badge, theme::semibold(10.0), if t.dark() { t.text } else { hue });
-    ui.painter().text(rect.min + vec2(58.0, 18.0), Align2::LEFT_CENTER, label, theme::semibold(13.5), t.text);
-    ui.painter().text(rect.min + vec2(58.0, 36.0), Align2::LEFT_CENTER, hint, theme::regular(12.0), t.text_muted);
+    let chip = Rect::from_min_size(rect.min + vec2(10.0, 10.0), vec2(36.0, 34.0));
+    ui.painter().rect_filled(chip, CornerRadius::same(10), hue.gamma_multiply(if t.dark() { 0.30 } else { 0.17 }));
+    ui.painter().text(chip.center(), Align2::CENTER_CENTER, badge, theme::semibold(10.5), if t.dark() { t.text } else { hue });
+    ui.painter().text(rect.min + vec2(58.0, 19.0), Align2::LEFT_CENTER, label, theme::semibold(14.0), t.text);
+    ui.painter().text(rect.min + vec2(58.0, 37.0), Align2::LEFT_CENTER, hint, theme::regular(12.5), t.text_muted);
     theme::hand(resp)
 }
 
@@ -764,6 +873,7 @@ fn round_button(ui: &mut egui::Ui, t: &Tokens, icon: &str, tip: &str) -> egui::R
 /// The phone's bottom tab bar: Home, Document, Mark up, Tools, Send.
 pub fn phone_tabs(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
+    let has_doc = app.active.is_some() && !app.combine_showing();
     egui::Panel::bottom("axion_phone_tabs")
         .exact_size(88.0)
         .show_separator_line(false)
@@ -772,13 +882,13 @@ pub fn phone_tabs(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
             card(&t, 24).show(ui, |ui| {
                 ui.set_height(68.0);
                 ui.set_width(ui.available_width());
-                let has_doc = app.active.is_some() && !app.combine_showing();
+                let marking = matches!(app.quick_tool, crate::QuickTool::Comment(_));
                 let items: [(&str, &str, bool); 5] = [
                     ("house", tl!("Home"), app.active.is_none() && !app.combine_showing()),
-                    ("file-text", tl!("Document"), has_doc && app.left_open == false),
-                    ("highlighter", tl!("Comment"), has_doc && app.mode == Mode::Edit && app.left_open),
+                    ("file-text", tl!("Document"), has_doc && !app.left_open && !marking),
+                    ("highlighter", tl!("Mark up"), has_doc && marking),
                     ("layout-grid", tl!("Tools"), app.left_open && app.mode == Mode::AllTools),
-                    ("share-2", tl!("Convert"), false),
+                    ("share-2", tl!("Send"), false),
                 ];
                 let w = ui.available_width() / 5.0;
                 ui.horizontal_centered(|ui| {
@@ -827,10 +937,12 @@ pub fn phone_tabs(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                     }
                                     app.left_open = false;
                                     app.right = None;
+                                    app.quick_tool = crate::QuickTool::Select;
                                 }
                                 2 => {
                                     if has_doc {
                                         app.select_tool("comment");
+                                        app.execute("comment.highlight");
                                     }
                                 }
                                 _ => {
@@ -843,6 +955,128 @@ pub fn phone_tabs(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                             }
                         }
                     }
+                });
+            });
+        });
+    if has_doc {
+        phone_actions(app, ui, &t);
+    }
+}
+
+/// The phone's three big actions above the tabs: Save in Word, In Markdown, and Sign.
+fn phone_actions(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
+    egui::Panel::bottom("axion_phone_actions")
+        .exact_size(76.0)
+        .show_separator_line(false)
+        .frame(egui::Frame::NONE.fill(t.pasteboard).inner_margin(egui::Margin { left: 14, right: 14, top: 4, bottom: 8 }))
+        .show(ui, |ui| {
+            let w = ((ui.available_width() - 20.0) / 3.0).floor();
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 10.0;
+                if action_card(ui, t, Some(("DOCX", Color32::from_rgb(0x2C, 0x5F, 0xD3))), None, tl!("Save in Word"), w, false).clicked() {
+                    app.execute("export.docx");
+                }
+                if action_card(ui, t, Some(("MD", Color32::from_rgb(0x0D, 0x74, 0x69))), None, tl!("In Markdown"), w, false).clicked() {
+                    app.execute("export.markdown");
+                }
+                if action_card(ui, t, None, Some("signature"), tl!("Sign"), w, true).clicked() {
+                    app.select_tool("fill_sign");
+                }
+            });
+        });
+}
+
+fn action_card(
+    ui: &mut egui::Ui,
+    t: &Tokens,
+    badge: Option<(&str, Color32)>,
+    icon: Option<&str>,
+    label: &str,
+    width: f32,
+    primary: bool,
+) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(vec2(width, 64.0), Sense::click());
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
+    let press = theme::Press::track(ui, &resp);
+    let body = rect.translate(press.offset());
+    let (fill, ink) = if primary {
+        (press.fill(t.sign, t.sign.lerp_to_gamma(Color32::BLACK, 0.12), t.sign.lerp_to_gamma(Color32::BLACK, 0.22)), Color32::WHITE)
+    } else {
+        (press.fill(t.card, t.hover, t.pressed), t.text)
+    };
+    ui.painter().add(shadow(t).as_shape(body, CornerRadius::same(18)));
+    ui.painter().rect_filled(body, CornerRadius::same(18), fill);
+    if let Some((text, hue)) = badge {
+        let chip = Rect::from_center_size(egui::pos2(body.center().x, body.top() + 20.0), vec2(38.0, 18.0));
+        ui.painter().rect_filled(chip, CornerRadius::same(6), hue.gamma_multiply(if t.dark() { 0.30 } else { 0.17 }));
+        ui.painter().text(chip.center(), Align2::CENTER_CENTER, text, theme::semibold(10.0), if t.dark() { t.text } else { hue });
+    }
+    if let Some(icon) = icon {
+        icons::paint(ui, Rect::from_center_size(egui::pos2(body.center().x, body.top() + 20.0), vec2(18.0, 18.0)), icon, 18.0, ink);
+    }
+    let mut job = egui::text::LayoutJob::simple_singleline(label.to_owned(), theme::semibold(13.0), ink);
+    job.wrap = egui::text::TextWrapping { max_width: width - 12.0, max_rows: 1, break_anywhere: true, ..Default::default() };
+    let galley = ui.fonts_mut(|f| f.layout_job(job));
+    ui.painter().galley(egui::pos2(body.center().x - galley.size().x / 2.0, body.bottom() - 26.0), galley, ink);
+    theme::hand(resp)
+}
+
+/// Tablet: the document's pages as a strip of numbered tiles under the page (click to go there).
+pub fn page_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
+    let Some(index) = app.active.filter(|i| *i < app.views.len() && !app.combine_showing()) else { return };
+    let pages = app.active_ids().and_then(|(_, id)| app.session.get(id)).map_or(0, |d| d.info.pages.len());
+    if pages == 0 {
+        return;
+    }
+    let t = Tokens::get(ui.ctx());
+    egui::Panel::bottom("axion_page_strip")
+        .exact_size(122.0)
+        .show_separator_line(false)
+        .frame(egui::Frame::NONE.fill(t.pasteboard).inner_margin(egui::Margin { left: GAP as i8, right: GAP as i8, top: 4, bottom: GAP as i8 }))
+        .show(ui, |ui| {
+            card(&t, 20).inner_margin(egui::Margin::symmetric(14, 10)).show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.set_height(84.0);
+                let view = &mut app.views[index];
+                let current = view.current;
+                let memo = egui::Id::new(("axion-strip-current", index));
+                let follow = ui.data(|d| d.get_temp::<usize>(memo)) != Some(current);
+                ui.data_mut(|d| d.insert_temp(memo, current));
+                egui::ScrollArea::horizontal().id_salt("axion-strip").auto_shrink([false, false]).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 12.0;
+                        for p in 0..pages.min(2000) {
+                            let on = p == current;
+                            let (rect, resp) = ui.allocate_exact_size(vec2(56.0, 84.0), Sense::click());
+                            let tile = Rect::from_min_size(rect.min, vec2(56.0, 66.0));
+                            let press = theme::Press::track(ui, &resp);
+                            ui.painter().rect(
+                                tile,
+                                CornerRadius::same(6),
+                                press.fill(Color32::WHITE, t.hover, t.pressed),
+                                Stroke::new(if on { 2.0 } else { 1.0 }, if on { t.accent } else { t.border }),
+                                egui::StrokeKind::Inside,
+                            );
+                            for k in 0..4 {
+                                let y = tile.top() + 14.0 + k as f32 * 9.0;
+                                let w = if k == 3 { 22.0 } else { 34.0 };
+                                ui.painter().hline(tile.left() + 11.0..=tile.left() + 11.0 + w, y, Stroke::new(1.5, t.divider));
+                            }
+                            ui.painter().text(
+                                egui::pos2(tile.center().x, rect.bottom() - 8.0),
+                                Align2::CENTER_CENTER,
+                                (p + 1).to_string(),
+                                if on { theme::semibold(11.5) } else { theme::regular(11.5) },
+                                if on { t.accent } else { t.text_muted },
+                            );
+                            if on && follow {
+                                resp.scroll_to_me(None);
+                            }
+                            if theme::hand(resp).clicked() {
+                                view.go_to_page(p);
+                            }
+                        }
+                    });
                 });
             });
         });

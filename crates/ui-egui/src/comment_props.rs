@@ -207,7 +207,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
                 egui::Grid::new("comment-props").num_columns(2).spacing([12.0, 10.0]).show(ui, |ui| {
                     if let Some(icon) = e.icon.as_mut() {
                         ui.label(tl!("Icon"));
-                        egui::ComboBox::from_id_salt("note-icon").selected_text(icon.name()).show_ui(ui, |ui| {
+                        egui::ComboBox::from_id_salt("note-icon").icon(crate::widgets::combo_icon).selected_text(icon.name()).show_ui(ui, |ui| {
                             for i in ICONS {
                                 ui.selectable_value(icon, i, i.name());
                             }
@@ -247,14 +247,15 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
                         ui.label(tl!("Line ending"));
                         ui.horizontal(|ui| {
                             for (i, ending) in ends.iter_mut().enumerate() {
-                                egui::ComboBox::from_id_salt(("line-ending", i)).selected_text(ending_label(*ending)).width(188.0).show_ui(
-                                    ui,
-                                    |ui| {
+                                egui::ComboBox::from_id_salt(("line-ending", i))
+                                    .icon(crate::widgets::combo_icon)
+                                    .selected_text(ending_label(*ending))
+                                    .width(188.0)
+                                    .show_ui(ui, |ui| {
                                         for style in LineEnding::ALL {
                                             ui.selectable_value(ending, style, ending_label(style));
                                         }
-                                    },
-                                );
+                                    });
                             }
                         });
                         ui.end_row();

@@ -70,6 +70,11 @@ public class MainActivity extends Activity {
         web.setBackgroundColor(isNight() ? Color.rgb(0x0E, 0x14, 0x20) : Color.rgb(0xED, 0xF2, 0xF9));
         setContentView(web);
         applyInsets();
+        // A long press must never start the WebView's own text selection or its callout: the app
+        // handles touch itself (a drag scrolls, a tap places the cursor).
+        web.setLongClickable(false);
+        web.setOnLongClickListener(v -> true);
+        web.setHapticFeedbackEnabled(false);
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);

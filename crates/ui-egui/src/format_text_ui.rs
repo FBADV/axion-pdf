@@ -79,6 +79,7 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, look: &mut AddedText, extras:
     // The font, across the panel.
     let width = ui.available_width();
     egui::ComboBox::from_id_salt("format-font")
+        .icon(crate::widgets::combo_icon)
         .selected_text(fonts.shown.as_str())
         .width(width)
         .show_ui(ui, |ui| {
@@ -129,6 +130,7 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, look: &mut AddedText, extras:
     // Size and colour | bullets, numbering and alignment.
     row(ui, |ui| {
         let _ = egui::ComboBox::from_id_salt("format-size")
+            .icon(crate::widgets::combo_icon)
             .selected_text(number(look.size))
             .width(64.0)
             .show_ui(ui, |ui| {
@@ -206,7 +208,7 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, look: &mut AddedText, extras:
             labelled_icon(ui, t, "arrow-up-down", tl!("Line spacing"));
             let own = tl!("Auto").to_string();
             let shown = if e.line_spacing == 0.0 { own.clone() } else { number(e.line_spacing) };
-            egui::ComboBox::from_id_salt("format-line-spacing").selected_text(shown).width(half).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_salt("format-line-spacing").icon(crate::widgets::combo_icon).selected_text(shown).width(half).show_ui(ui, |ui| {
                 ui.selectable_value(&mut e.line_spacing, 0.0, own.as_str());
                 for v in LINE_SPACINGS {
                     ui.selectable_value(&mut e.line_spacing, v, number(v));
@@ -217,6 +219,7 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, look: &mut AddedText, extras:
                 labelled_icon(ui, t, "pilcrow", tl!("Paragraph spacing"));
                 let tip = format!("{} — {}", tl!("Paragraph spacing"), tl!("Planned"));
                 let _ = egui::ComboBox::from_id_salt("format-paragraph-spacing")
+                    .icon(crate::widgets::combo_icon)
                     .selected_text("0")
                     .width(half)
                     .show_ui(ui, |_| {})

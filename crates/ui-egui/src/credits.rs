@@ -243,14 +243,17 @@ pub fn contributors_ui(ui: &mut egui::Ui) {
         }
         ui.separator();
         ui.label(crate::i18n::t("Sort"));
-        egui::ComboBox::from_id_salt("credits_sort").selected_text(crate::i18n::t(v.key.label().0)).show_ui(ui, |ui| {
-            for k in SortKey::ALL {
-                if ui.selectable_label(v.key == k, crate::i18n::t(k.label().0)).clicked() {
-                    v.key = k;
-                    v.ascending = k.default_ascending();
+        egui::ComboBox::from_id_salt("credits_sort").icon(crate::widgets::combo_icon).selected_text(crate::i18n::t(v.key.label().0)).show_ui(
+            ui,
+            |ui| {
+                for k in SortKey::ALL {
+                    if ui.selectable_label(v.key == k, crate::i18n::t(k.label().0)).clicked() {
+                        v.key = k;
+                        v.ascending = k.default_ascending();
+                    }
                 }
-            }
-        });
+            },
+        );
         if ui.button(if v.ascending { "▲" } else { "▼" }).on_hover_text(crate::i18n::t("Reverse the order")).clicked() {
             v.ascending = !v.ascending;
         }

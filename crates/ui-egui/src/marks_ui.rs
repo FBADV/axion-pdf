@@ -63,7 +63,7 @@ impl PageRange {
                 Subset::Even => tl!("Even pages only"),
                 Subset::Odd => tl!("Odd pages only"),
             };
-            egui::ComboBox::from_id_salt("mark-subset").selected_text(label).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_salt("mark-subset").icon(crate::widgets::combo_icon).selected_text(label).show_ui(ui, |ui| {
                 ui.selectable_value(&mut self.subset, Subset::All, tl!("All pages in range"));
                 ui.selectable_value(&mut self.subset, Subset::Even, tl!("Even pages only"));
                 ui.selectable_value(&mut self.subset, Subset::Odd, tl!("Odd pages only"));
@@ -216,11 +216,14 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
             ui.horizontal(|ui| {
                 // The standard faces a header can be drawn in (#3754).
                 ui.label(tl!("Font:"));
-                egui::ComboBox::from_id_salt("hf-font").selected_text(d.hf.font.label()).width(100.0).show_ui(ui, |ui| {
-                    for f in [FontFamily::Helvetica, FontFamily::Times, FontFamily::Courier] {
-                        ui.selectable_value(&mut d.hf.font, f, f.label());
-                    }
-                });
+                egui::ComboBox::from_id_salt("hf-font").icon(crate::widgets::combo_icon).selected_text(d.hf.font.label()).width(100.0).show_ui(
+                    ui,
+                    |ui| {
+                        for f in [FontFamily::Helvetica, FontFamily::Times, FontFamily::Courier] {
+                            ui.selectable_value(&mut d.hf.font, f, f.label());
+                        }
+                    },
+                );
                 ui.label(tl!("Size"));
                 ui.add(egui::DragValue::new(&mut d.hf.font_size).range(4.0..=72.0).speed(0.5));
                 ui.add(widgets::checkbox(&mut d.hf.underline, tl!("Underline")));
@@ -256,26 +259,26 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                 }
             });
             ui.horizontal(|ui| {
-                egui::ComboBox::from_id_salt("hf-page-format").selected_text(PAGE_FORMATS[d.page_format].trim_matches(['<', '>'])).show_ui(
-                    ui,
-                    |ui| {
+                egui::ComboBox::from_id_salt("hf-page-format")
+                    .icon(crate::widgets::combo_icon)
+                    .selected_text(PAGE_FORMATS[d.page_format].trim_matches(['<', '>']))
+                    .show_ui(ui, |ui| {
                         for (k, f) in PAGE_FORMATS.iter().enumerate() {
                             ui.selectable_value(&mut d.page_format, k, f.trim_matches(['<', '>']));
                         }
-                    },
-                );
+                    });
                 if ui.button(tl!("Insert Page Number")).clicked() {
                     d.hf.text[d.focused_box].push_str(PAGE_FORMATS[d.page_format]);
                 }
                 ui.add_space(12.0);
-                egui::ComboBox::from_id_salt("hf-date-format").selected_text(DATE_FORMATS[d.date_format].trim_matches(['<', '>'])).show_ui(
-                    ui,
-                    |ui| {
+                egui::ComboBox::from_id_salt("hf-date-format")
+                    .icon(crate::widgets::combo_icon)
+                    .selected_text(DATE_FORMATS[d.date_format].trim_matches(['<', '>']))
+                    .show_ui(ui, |ui| {
                         for (k, f) in DATE_FORMATS.iter().enumerate() {
                             ui.selectable_value(&mut d.date_format, k, f.trim_matches(['<', '>']));
                         }
-                    },
-                );
+                    });
                 if ui.button(tl!("Insert Date")).clicked() {
                     d.hf.text[d.focused_box].push_str(DATE_FORMATS[d.date_format]);
                 }

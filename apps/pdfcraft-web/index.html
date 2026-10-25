@@ -6,10 +6,13 @@
     <title>Axion PDF</title>
     <link data-trunk rel="rust" data-wasm-opt="z" />
     <style>
-      html, body { margin: 0; height: 100%; overflow: hidden; background: #EDF2F9; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #F3F5F9; }
       canvas { width: 100%; height: 100%; display: block; outline: none; }
-      @media (prefers-color-scheme: dark) { html, body { background: #0E1420; } }
-    </style>
+      @media (prefers-color-scheme: dark) { html, body { background: #10151E; } }
+      /* Axion: touch never selects the interface or pops the browser's callouts. */
+    html, body, canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+    canvas { touch-action: none; }
+  </style>
   </head>
   <body>
     <canvas id="pdfcraft"></canvas>

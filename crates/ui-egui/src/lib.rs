@@ -652,6 +652,8 @@ pub struct PdfCraftApp {
     /// Axion: the window was phone-sized last frame, and how many documents were open then.
     axion_phone: bool,
     axion_fitted: usize,
+    /// Tablet: the panel rail is shown (the command bar's panel button toggles it).
+    pub(crate) axion_rail: bool,
     pub right: Option<RightPanel>,
     /// The right panel that was open when the user switched to Read mode, which starts with the
     /// panes closed; leaving Read mode brings it back unless the user opened or closed a pane in
@@ -1115,6 +1117,7 @@ impl PdfCraftApp {
             axion_compact: false,
             axion_phone: false,
             axion_fitted: 0,
+            axion_rail: false,
             right: None,
             right_before_read: None,
             comments_panel_closed: false,
@@ -3707,6 +3710,17 @@ impl eframe::App for PdfCraftApp {
             self.left_open = false;
             self.right = None;
         }
+        // Touch (Android, a touch screen): a finger's drag pans the page, so the pointer tool
+        // becomes the Hand the first time a finger touches the window.
+        let touch_id = egui::Id::new("axion-touch");
+        if !ctx.data(|d| d.get_temp::<bool>(touch_id)).unwrap_or(false)
+            && ctx.input(|i| i.any_touches() || i.events.iter().any(|e| matches!(e, egui::Event::Touch { .. })))
+        {
+            ctx.data_mut(|d| d.insert_temp(touch_id, true));
+            if self.quick_tool == QuickTool::Select {
+                self.quick_tool = QuickTool::Hand;
+            }
+        }
         // On a phone, pages open fitted to the width of the screen.
         if phone {
             let from = if self.axion_phone { self.axion_fitted.min(self.views.len()) } else { 0 };
@@ -3732,9 +3746,13 @@ impl eframe::App for PdfCraftApp {
             size => {
                 axion_shell::sidebar(self, ui, size == axion_shell::Size::Tablet);
                 axion_shell::command_bar(self, ui, size == axion_shell::Size::Tablet);
+                if size == axion_shell::Size::Tablet {
+                    axion_shell::page_strip(self, ui);
+                }
             }
         }
-        if self.active.is_some() && axion_shell::size(&ctx) != axion_shell::Size::Phone {
+        let size = axion_shell::size(&ctx);
+        if self.active.is_some() && (size == axion_shell::Size::Desktop || (size == axion_shell::Size::Tablet && self.axion_rail)) {
             chrome::right_rail(self, ui);
             // Read mode hides the tools, not the navigation panes: the rail stays visible
             // there, so its buttons (Bookmarks, Page thumbnails, ...) must open their panels.

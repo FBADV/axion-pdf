@@ -1032,6 +1032,7 @@ fn flag_box(ui: &mut egui::Ui, flags: &mut u32, bit: u32, inverted: bool, label:
 fn alignment(ui: &mut egui::Ui, quadding: &mut i64) {
     ui.label(tl!("Alignment:"));
     egui::ComboBox::from_id_salt("quadding")
+        .icon(crate::widgets::combo_icon)
         .selected_text(tl!(match (*quadding).clamp(0, 2) {
             1 => "Center",
             2 => "Right",
@@ -1101,7 +1102,7 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Toke
                     ui.end_row();
                     if let Some(l) = d.look.as_mut() {
                         ui.label(tl!("Font:"));
-                        egui::ComboBox::from_id_salt("field-font").selected_text(l.font.label()).show_ui(ui, |ui| {
+                        egui::ComboBox::from_id_salt("field-font").icon(crate::widgets::combo_icon).selected_text(l.font.label()).show_ui(ui, |ui| {
                             for f in FieldFont::ALL {
                                 ui.selectable_value(&mut l.font, f, f.label());
                             }
@@ -1144,18 +1145,24 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Toke
                                 tl!("Thick")
                             }
                         };
-                        egui::ComboBox::from_id_salt("field-width").selected_text(thick(l.width)).show_ui(ui, |ui| {
-                            for (w, label) in [(1.0, tl!("Thin")), (2.0, tl!("Medium")), (3.0, tl!("Thick"))] {
-                                ui.selectable_value(&mut l.width, w, label);
-                            }
-                        });
+                        egui::ComboBox::from_id_salt("field-width").icon(crate::widgets::combo_icon).selected_text(thick(l.width)).show_ui(
+                            ui,
+                            |ui| {
+                                for (w, label) in [(1.0, tl!("Thin")), (2.0, tl!("Medium")), (3.0, tl!("Thick"))] {
+                                    ui.selectable_value(&mut l.width, w, label);
+                                }
+                            },
+                        );
                         ui.end_row();
                         ui.label(tl!("Line Style:"));
-                        egui::ComboBox::from_id_salt("field-style").selected_text(tl!(l.style.label())).show_ui(ui, |ui| {
-                            for s in BorderStyle::ALL {
-                                ui.selectable_value(&mut l.style, s, tl!(s.label()));
-                            }
-                        });
+                        egui::ComboBox::from_id_salt("field-style").icon(crate::widgets::combo_icon).selected_text(tl!(l.style.label())).show_ui(
+                            ui,
+                            |ui| {
+                                for s in BorderStyle::ALL {
+                                    ui.selectable_value(&mut l.style, s, tl!(s.label()));
+                                }
+                            },
+                        );
                         ui.end_row();
                     });
                 }
@@ -1177,6 +1184,7 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Toke
                     let l = ui.label(tl!("Rotation:"));
                     let before = d.rotation;
                     egui::ComboBox::from_id_salt("field-rotation")
+                        .icon(crate::widgets::combo_icon)
                         .selected_text(format!("{}°", d.rotation))
                         .show_ui(ui, |ui| {
                             for r in [0, 90, 180, 270] {
@@ -1252,6 +1260,7 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Toke
                         ui.horizontal(|ui| {
                             let l = ui.label(tl!(if d.kind == FormFieldKind::CheckBox { "Check Box Style:" } else { "Button Style:" }));
                             egui::ComboBox::from_id_salt("check-style")
+                                .icon(crate::widgets::combo_icon)
                                 .selected_text(tl!(style.label()))
                                 .show_ui(ui, |ui| {
                                     for s in pdfcraft_engine::CheckStyle::ALL {
@@ -1311,7 +1320,7 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Toke
                     ui.horizontal(|ui| {
                         ui.label(tl!("Default:"));
                         let shown = if d.default.is_empty() { tl!("(none)").to_string() } else { d.default.clone() };
-                        egui::ComboBox::from_id_salt("choice-default").selected_text(shown).show_ui(ui, |ui| {
+                        egui::ComboBox::from_id_salt("choice-default").icon(crate::widgets::combo_icon).selected_text(shown).show_ui(ui, |ui| {
                             ui.selectable_value(&mut d.default, String::new(), tl!("(none)"));
                             for o in d.options.clone() {
                                 ui.selectable_value(&mut d.default, o.clone(), o);
@@ -1377,6 +1386,7 @@ fn format_tab(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Tokens) {
     ui.horizontal(|ui| {
         ui.label(tl!("Select format category:"));
         egui::ComboBox::from_id_salt("format-cat")
+            .icon(crate::widgets::combo_icon)
             .selected_text(tl!(match cat {
                 Category::None => "None",
                 Category::Number => "Number",
@@ -1428,15 +1438,19 @@ fn format_tab(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Tokens) {
                 ui.add(egui::DragValue::new(decimals).range(0..=10));
                 ui.end_row();
                 ui.label(tl!("Separator style:"));
-                egui::ComboBox::from_id_salt("fmt-sep").selected_text(SEPARATORS[(*sep).min(4) as usize]).show_ui(ui, |ui| {
-                    for (i, s) in SEPARATORS.iter().enumerate() {
-                        ui.selectable_value(sep, i as u8, *s);
-                    }
-                });
+                egui::ComboBox::from_id_salt("fmt-sep").icon(crate::widgets::combo_icon).selected_text(SEPARATORS[(*sep).min(4) as usize]).show_ui(
+                    ui,
+                    |ui| {
+                        for (i, s) in SEPARATORS.iter().enumerate() {
+                            ui.selectable_value(sep, i as u8, *s);
+                        }
+                    },
+                );
                 ui.end_row();
                 ui.label(tl!("Currency symbol:"));
                 ui.horizontal(|ui| {
                     egui::ComboBox::from_id_salt("fmt-cur")
+                        .icon(crate::widgets::combo_icon)
                         .selected_text(if currency.is_empty() { tl!("None") } else { currency.as_str() })
                         .width(70.0)
                         .show_ui(ui, |ui| {
@@ -1448,11 +1462,14 @@ fn format_tab(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Tokens) {
                 });
                 ui.end_row();
                 ui.label(tl!("Negative number style:"));
-                egui::ComboBox::from_id_salt("fmt-neg").selected_text(NEGATIVES[(*neg).min(3) as usize]).show_ui(ui, |ui| {
-                    for (i, s) in NEGATIVES.iter().enumerate() {
-                        ui.selectable_value(neg, i as u8, *s);
-                    }
-                });
+                egui::ComboBox::from_id_salt("fmt-neg").icon(crate::widgets::combo_icon).selected_text(NEGATIVES[(*neg).min(3) as usize]).show_ui(
+                    ui,
+                    |ui| {
+                        for (i, s) in NEGATIVES.iter().enumerate() {
+                            ui.selectable_value(neg, i as u8, *s);
+                        }
+                    },
+                );
                 ui.end_row();
             });
         }
@@ -1462,11 +1479,14 @@ fn format_tab(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Tokens) {
                 ui.add(egui::DragValue::new(decimals).range(0..=10));
                 ui.end_row();
                 ui.label(tl!("Separator style:"));
-                egui::ComboBox::from_id_salt("fmt-psep").selected_text(SEPARATORS[(*sep).min(4) as usize]).show_ui(ui, |ui| {
-                    for (i, s) in SEPARATORS.iter().enumerate() {
-                        ui.selectable_value(sep, i as u8, *s);
-                    }
-                });
+                egui::ComboBox::from_id_salt("fmt-psep").icon(crate::widgets::combo_icon).selected_text(SEPARATORS[(*sep).min(4) as usize]).show_ui(
+                    ui,
+                    |ui| {
+                        for (i, s) in SEPARATORS.iter().enumerate() {
+                            ui.selectable_value(sep, i as u8, *s);
+                        }
+                    },
+                );
                 ui.end_row();
             });
         }
@@ -1478,7 +1498,7 @@ fn format_tab(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Tokens) {
             };
             ui.horizontal(|ui| {
                 ui.label(tl!("Format:"));
-                egui::ComboBox::from_id_salt("fmt-date").selected_text(p.as_str()).width(170.0).show_ui(ui, |ui| {
+                egui::ComboBox::from_id_salt("fmt-date").icon(crate::widgets::combo_icon).selected_text(p.as_str()).width(170.0).show_ui(ui, |ui| {
                     for pr in presets {
                         ui.selectable_value(p, pr.to_string(), pr);
                     }
@@ -1489,7 +1509,7 @@ fn format_tab(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Tokens) {
         }
         Format::Special(n) => {
             let mut idx = *n as usize;
-            egui::ComboBox::from_id_salt("fmt-special").selected_text(tl!(SPECIALS[idx.min(4)])).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_salt("fmt-special").icon(crate::widgets::combo_icon).selected_text(tl!(SPECIALS[idx.min(4)])).show_ui(ui, |ui| {
                 for (i, s) in SPECIALS.iter().enumerate() {
                     ui.selectable_value(&mut idx, i, tl!(s));
                 }
@@ -1502,7 +1522,7 @@ fn format_tab(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Tokens) {
         }
         Format::Mask(m) => {
             let mut idx = 4usize;
-            egui::ComboBox::from_id_salt("fmt-special").selected_text(tl!(SPECIALS[4])).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_salt("fmt-special").icon(crate::widgets::combo_icon).selected_text(tl!(SPECIALS[4])).show_ui(ui, |ui| {
                 for (i, s) in SPECIALS.iter().enumerate() {
                     ui.selectable_value(&mut idx, i, tl!(s));
                 }
@@ -1561,20 +1581,28 @@ fn actions_tab(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Tokens) 
         ui.label(tl!("Select Trigger:"));
         // Editing changes the script of one trigger's action: its trigger and kind stay.
         ui.add_enabled_ui(!editing, |ui| {
-            egui::ComboBox::from_id_salt("action-trigger").selected_text(tl!(a.trigger.label())).width(220.0).show_ui(ui, |ui| {
-                for tr in T::ALL {
-                    ui.selectable_value(&mut a.trigger, tr, tl!(tr.label()));
-                }
-            });
+            egui::ComboBox::from_id_salt("action-trigger")
+                .icon(crate::widgets::combo_icon)
+                .selected_text(tl!(a.trigger.label()))
+                .width(220.0)
+                .show_ui(ui, |ui| {
+                    for tr in T::ALL {
+                        ui.selectable_value(&mut a.trigger, tr, tl!(tr.label()));
+                    }
+                });
         });
         ui.end_row();
         ui.label(tl!("Select Action:"));
         ui.add_enabled_ui(!editing, |ui| {
-            egui::ComboBox::from_id_salt("action-kind").selected_text(tl!(ACTION_KINDS[a.kind])).width(220.0).show_ui(ui, |ui| {
-                for (i, k) in ACTION_KINDS.iter().enumerate() {
-                    ui.selectable_value(&mut a.kind, i, tl!(k));
-                }
-            });
+            egui::ComboBox::from_id_salt("action-kind")
+                .icon(crate::widgets::combo_icon)
+                .selected_text(tl!(ACTION_KINDS[a.kind]))
+                .width(220.0)
+                .show_ui(ui, |ui| {
+                    for (i, k) in ACTION_KINDS.iter().enumerate() {
+                        ui.selectable_value(&mut a.kind, i, tl!(k));
+                    }
+                });
         });
         ui.end_row();
         let hint = match a.kind {
@@ -1691,7 +1719,7 @@ fn calculate_tab(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Tokens
     if let Calculate::Simple { op, fields } = &mut d.calculate {
         ui.horizontal(|ui| {
             ui.add_space(24.0);
-            egui::ComboBox::from_id_salt("calc-op").selected_text(tl!(op.label())).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_salt("calc-op").icon(crate::widgets::combo_icon).selected_text(tl!(op.label())).show_ui(ui, |ui| {
                 for o in CalcOp::ALL {
                     ui.selectable_value(op, o, tl!(o.label()));
                 }

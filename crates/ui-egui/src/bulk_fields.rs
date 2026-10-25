@@ -238,10 +238,13 @@ impl crate::PdfCraftApp {
 
 fn bool_row(ui: &mut egui::Ui, label: &str, c: &mut Change<bool>) {
     row(ui, label, c, |ui, value| {
-        egui::ComboBox::from_id_salt(label).selected_text(tl!(if *value { "Yes" } else { "No" })).show_ui(ui, |ui| {
-            ui.selectable_value(value, true, tl!("Yes"));
-            ui.selectable_value(value, false, tl!("No"));
-        });
+        egui::ComboBox::from_id_salt(label).icon(crate::widgets::combo_icon).selected_text(tl!(if *value { "Yes" } else { "No" })).show_ui(
+            ui,
+            |ui| {
+                ui.selectable_value(value, true, tl!("Yes"));
+                ui.selectable_value(value, false, tl!("No"));
+            },
+        );
     });
 }
 
@@ -296,11 +299,14 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut Draft, t: &theme::Tokens) -> (bool
                     });
                     let font_label = if d.font.apply { d.font.value.label().to_string() } else { d.font_label.clone() };
                     row(ui, "Font:", &mut d.font, |ui, v| {
-                        egui::ComboBox::from_id_salt("bulk-font").selected_text(tl!(&font_label)).show_ui(ui, |ui| {
-                            for font in FieldFont::ALL {
-                                ui.selectable_value(v, font, font.label());
-                            }
-                        });
+                        egui::ComboBox::from_id_salt("bulk-font").icon(crate::widgets::combo_icon).selected_text(tl!(&font_label)).show_ui(
+                            ui,
+                            |ui| {
+                                for font in FieldFont::ALL {
+                                    ui.selectable_value(v, font, font.label());
+                                }
+                            },
+                        );
                     });
                     row(ui, "Text Color:", &mut d.text, |ui, v| {
                         if let Some(c) = crate::comments::swatch_grid(ui, Some(*v)) {
@@ -314,7 +320,7 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut Draft, t: &theme::Tokens) -> (bool
                     ui.add(egui::DragValue::new(v).range(0.0..=12.0).speed(0.25).suffix(" pt"));
                 });
                 row(ui, "Line Style:", &mut d.style, |ui, v| {
-                    egui::ComboBox::from_id_salt("bulk-style").selected_text(tl!(v.label())).show_ui(ui, |ui| {
+                    egui::ComboBox::from_id_salt("bulk-style").icon(crate::widgets::combo_icon).selected_text(tl!(v.label())).show_ui(ui, |ui| {
                         for style in BorderStyle::ALL {
                             ui.selectable_value(v, style, tl!(style.label()));
                         }
@@ -329,7 +335,7 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut Draft, t: &theme::Tokens) -> (bool
                             2 => "Right",
                             _ => "Left",
                         };
-                        egui::ComboBox::from_id_salt("bulk-align").selected_text(tl!(label)).show_ui(ui, |ui| {
+                        egui::ComboBox::from_id_salt("bulk-align").icon(crate::widgets::combo_icon).selected_text(tl!(label)).show_ui(ui, |ui| {
                             for (value, label) in [(0, "Left"), (1, "Center"), (2, "Right")] {
                                 ui.selectable_value(v, value, tl!(label));
                             }
@@ -344,11 +350,14 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut Draft, t: &theme::Tokens) -> (bool
                 }
                 if d.check_fields {
                     row(ui, "Button Style:", &mut d.check_style, |ui, v| {
-                        egui::ComboBox::from_id_salt("bulk-check-style").selected_text(tl!(v.label())).show_ui(ui, |ui| {
-                            for style in CheckStyle::ALL {
-                                ui.selectable_value(v, style, tl!(style.label()));
-                            }
-                        });
+                        egui::ComboBox::from_id_salt("bulk-check-style").icon(crate::widgets::combo_icon).selected_text(tl!(v.label())).show_ui(
+                            ui,
+                            |ui| {
+                                for style in CheckStyle::ALL {
+                                    ui.selectable_value(v, style, tl!(style.label()));
+                                }
+                            },
+                        );
                     });
                 }
                 for (_, label, _, change) in &mut d.flags {
